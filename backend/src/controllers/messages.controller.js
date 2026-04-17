@@ -1,0 +1,426 @@
+const pool = require('../config/db');
+const xss = require('xss');
+
+const MSG_SELECT = `
+  SELECT
+    m.id,
+    m.content,
+    m.created_at,
+    m.updated_at,
+    m.is_edited,
+    m.sender_id,
+    u.name AS sender_name,
+    u.avatar_url,
+    u.email AS sender_email,
+    COALESCE(
+      json_agg(
+        json_build_object('emoji', mr.emoji, 'userId', mr.user_id, 'userName', ru.name)
+      ) FILTER (WHERE mr.id IS NOT NULL),
+      '[]'
+    ) AS reactions
+  FROM messages m
+  JOIN users u ON u.id = m.sender_id
+  LEFT JOIN message_reactions mr ON mr.message_id = m.id
+  LEFT JOIN users ru ON ru.id = mr.user_id
+`;
+
+const fetchById = (id) =>
+  pool.query(
+    `${MSG_SELECT} WHERE m.id = $1 GROUP BY m.id, u.name, u.avatar_url, u.email`,
+    [id]
+  );
+
+const getSpaceMessages = async (req, res) => {
+  const { id: spaceId } = req.params;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const before = req.query.before;
+
+  try {
+    let query, params;
+
+    if (before) {
+      query = `
+        SELECT * FROM (
+          ${MSG_SELECT}
+          WHERE m.space_id = $1 AND m.created_at < $2
+          GROUP BY m.id, u.name, u.avatar_url, u.email
+          ORDER BY m.created_at DESC
+          LIMIT $3
+        ) sub ORDER BY created_at ASC
+      `;
+      params = [spaceId, before, limit];
+    } else {
+      query = `
+        SELECT * FROM (
+          ${MSG_SELECT}
+          WHERE m.space_id = $1
+          GROUP BY m.id, u.name, u.avatar_url, u.email
+          ORDER BY m.created_at DESC
+          LIMIT $2
+        ) sub ORDER BY created_at ASC
+      `;
+      params = [spaceId, limit];
+    }
+
+    const result = await pool.query(query, params);
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM messages WHERE space_id = $1`,
+      [spaceId]
+    );
+
+    const total = parseInt(countResult.rows[0].count);
+    const hasMore = result.rows.length === limit && total > limit;
+
+    res.json({ messages: result.rows, total, hasMore });
+  } catch (err) {
+    console.error('getSpaceMessages error:', err);
+    res.status(500).json({ message: 'Failed to fetch messages' });
+  }
+};
+
+const sendSpaceMessage = async (req, res) => {
+  const { id: spaceId } = req.params;
+  const { content } = req.body;
+
+  if (!content?.trim()) return res.status(400).json({ message: 'Content cannot be empty' });
+
+  const clean = xss(content.trim());
+
+  try {
+    const ins = await pool.query(
+      `INSERT INTO messages (content, sender_id, space_id) VALUES ($1, $2, $3) RETURNING id`,
+      [clean, req.user.id, spaceId]
+    );
+
+    const result = await fetchById(ins.rows[0].id);
+    const message = { ...result.rows[0], space_id: spaceId };
+
+    req.app.get('io').to(`space:${spaceId}`).emit('new_message', message);
+    res.status(201).json(message);
+  } catch (err) {
+    console.error('sendSpaceMessage error:', err);
+    res.status(500).json({ message: 'Failed to send message' });
+  }
+};
+
+const editSpaceMessage = async (req, res) => {
+  const { id: spaceId, msgId } = req.params;
+  const { content } = req.body;
+
+  if (!content?.trim()) return res.status(400).json({ message: 'Content cannot be empty' });
+
+  const clean = xss(content.trim());
+
+  try {
+    const check = await pool.query(
+      `SELECT sender_id FROM messages WHERE id = $1 AND space_id = $2`,
+      [msgId, spaceId]
+    );
+
+    if (!check.rows.length) return res.status(404).json({ message: 'Message not found' });
+    if (check.rows[0].sender_id !== req.user.id) {
+      return res.status(403).json({ message: 'You can only edit your own messages' });
+    }
+
+    await pool.query(
+      `UPDATE messages SET content = $1, is_edited = true, updated_at = NOW() WHERE id = $2`,
+      [clean, msgId]
+    );
+
+    const result = await fetchById(msgId);
+    const message = { ...result.rows[0], space_id: spaceId };
+
+    req.app.get('io').to(`space:${spaceId}`).emit('message:edited', message);
+    res.json(message);
+  } catch (err) {
+    console.error('editSpaceMessage error:', err);
+    res.status(500).json({ message: 'Failed to edit message' });
+  }
+};
+
+const deleteSpaceMessage = async (req, res) => {
+  const { id: spaceId, msgId } = req.params;
+
+  try {
+    const check = await pool.query(
+      `SELECT sender_id FROM messages WHERE id = $1 AND space_id = $2`,
+      [msgId, spaceId]
+    );
+
+    if (!check.rows.length) return res.status(404).json({ message: 'Message not found' });
+    if (check.rows[0].sender_id !== req.user.id) {
+      return res.status(403).json({ message: 'You can only delete your own messages' });
+    }
+
+    await pool.query(`DELETE FROM messages WHERE id = $1`, [msgId]);
+
+    req.app.get('io').to(`space:${spaceId}`).emit('message:deleted', { messageId: msgId, spaceId });
+    res.json({ messageId: msgId });
+  } catch (err) {
+    console.error('deleteSpaceMessage error:', err);
+    res.status(500).json({ message: 'Failed to delete message' });
+  }
+};
+
+const addReaction = async (req, res) => {
+  const { msgId } = req.params;
+  const { emoji } = req.body;
+
+  if (!emoji) return res.status(400).json({ message: 'Emoji is required' });
+
+  try {
+    await pool.query(
+      `INSERT INTO message_reactions (message_id, user_id, emoji)
+       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+      [msgId, req.user.id, emoji]
+    );
+
+    const reactions = await pool.query(
+      `SELECT mr.emoji, mr.user_id AS "userId", u.name AS "userName"
+       FROM message_reactions mr
+       JOIN users u ON u.id = mr.user_id
+       WHERE mr.message_id = $1`,
+      [msgId]
+    );
+
+    const msgInfo = await pool.query(
+      `SELECT space_id, conversation_id FROM messages WHERE id = $1`,
+      [msgId]
+    );
+
+    const io = req.app.get('io');
+    const payload = { messageId: msgId, reactions: reactions.rows };
+
+    if (msgInfo.rows[0]?.space_id) {
+      io.to(`space:${msgInfo.rows[0].space_id}`).emit('reaction:updated', payload);
+    } else if (msgInfo.rows[0]?.conversation_id) {
+      io.to(`dm:${msgInfo.rows[0].conversation_id}`).emit('reaction:updated', payload);
+    }
+
+    res.json(payload);
+  } catch (err) {
+    console.error('addReaction error:', err);
+    res.status(500).json({ message: 'Failed to add reaction' });
+  }
+};
+
+const removeReaction = async (req, res) => {
+  const { msgId } = req.params;
+  const { emoji } = req.body;
+
+  if (!emoji) return res.status(400).json({ message: 'Emoji is required' });
+
+  try {
+    await pool.query(
+      `DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`,
+      [msgId, req.user.id, emoji]
+    );
+
+    const reactions = await pool.query(
+      `SELECT mr.emoji, mr.user_id AS "userId", u.name AS "userName"
+       FROM message_reactions mr
+       JOIN users u ON u.id = mr.user_id
+       WHERE mr.message_id = $1`,
+      [msgId]
+    );
+
+    const msgInfo = await pool.query(
+      `SELECT space_id, conversation_id FROM messages WHERE id = $1`,
+      [msgId]
+    );
+
+    const io = req.app.get('io');
+    const payload = { messageId: msgId, reactions: reactions.rows };
+
+    if (msgInfo.rows[0]?.space_id) {
+      io.to(`space:${msgInfo.rows[0].space_id}`).emit('reaction:updated', payload);
+    } else if (msgInfo.rows[0]?.conversation_id) {
+      io.to(`dm:${msgInfo.rows[0].conversation_id}`).emit('reaction:updated', payload);
+    }
+
+    res.json(payload);
+  } catch (err) {
+    console.error('removeReaction error:', err);
+    res.status(500).json({ message: 'Failed to remove reaction' });
+  }
+};
+
+const searchMessages = async (req, res) => {
+  const { q, spaceId } = req.query;
+
+  if (!q?.trim() || q.trim().length < 2) {
+    return res.status(400).json({ message: 'Query must be at least 2 characters' });
+  }
+
+  try {
+    const baseQuery = `
+      SELECT m.id, m.content, m.created_at, u.name AS sender_name,
+             u.avatar_url, s.name AS space_name, s.id AS space_id
+      FROM messages m
+      JOIN users u ON u.id = m.sender_id
+      JOIN spaces s ON s.id = m.space_id
+      WHERE m.content ILIKE $1
+      ${spaceId ? 'AND m.space_id = $2' : ''}
+      ORDER BY m.created_at DESC
+      LIMIT 30
+    `;
+
+    const params = spaceId ? [`%${q.trim()}%`, spaceId] : [`%${q.trim()}%`];
+    const result = await pool.query(baseQuery, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('searchMessages error:', err);
+    res.status(500).json({ message: 'Search failed' });
+  }
+};
+
+const getDMMessages = async (req, res) => {
+  const { userId: otherUserId } = req.params;
+  const currentUserId = req.user.id;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const before = req.query.before;
+
+  try {
+    const userOne = currentUserId < otherUserId ? currentUserId : otherUserId;
+    const userTwo = currentUserId < otherUserId ? otherUserId : currentUserId;
+
+    const convResult = await pool.query(
+      `SELECT id FROM direct_conversations WHERE user_one_id = $1 AND user_two_id = $2`,
+      [userOne, userTwo]
+    );
+
+    if (!convResult.rows.length) {
+      return res.json({ messages: [], total: 0, hasMore: false, conversationId: null });
+    }
+
+    const conversationId = convResult.rows[0].id;
+
+    let query, params;
+    if (before) {
+      query = `
+        SELECT * FROM (
+          ${MSG_SELECT}
+          WHERE m.conversation_id = $1 AND m.created_at < $2
+          GROUP BY m.id, u.name, u.avatar_url, u.email
+          ORDER BY m.created_at DESC LIMIT $3
+        ) sub ORDER BY created_at ASC
+      `;
+      params = [conversationId, before, limit];
+    } else {
+      query = `
+        SELECT * FROM (
+          ${MSG_SELECT}
+          WHERE m.conversation_id = $1
+          GROUP BY m.id, u.name, u.avatar_url, u.email
+          ORDER BY m.created_at DESC LIMIT $2
+        ) sub ORDER BY created_at ASC
+      `;
+      params = [conversationId, limit];
+    }
+
+    const result = await pool.query(query, params);
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM messages WHERE conversation_id = $1`,
+      [conversationId]
+    );
+
+    const total = parseInt(countResult.rows[0].count);
+    res.json({ messages: result.rows, total, hasMore: total > limit, conversationId });
+  } catch (err) {
+    console.error('getDMMessages error:', err);
+    res.status(500).json({ message: 'Failed to fetch DM messages' });
+  }
+};
+
+const sendDMMessage = async (req, res) => {
+  const { userId: otherUserId } = req.params;
+  const currentUserId = req.user.id;
+  const { content } = req.body;
+
+  if (!content?.trim()) return res.status(400).json({ message: 'Content cannot be empty' });
+
+  const clean = xss(content.trim());
+
+  try {
+    const userOne = currentUserId < otherUserId ? currentUserId : otherUserId;
+    const userTwo = currentUserId < otherUserId ? otherUserId : currentUserId;
+
+    let convResult = await pool.query(
+      `SELECT id FROM direct_conversations WHERE user_one_id = $1 AND user_two_id = $2`,
+      [userOne, userTwo]
+    );
+
+    if (!convResult.rows.length) {
+      convResult = await pool.query(
+        `INSERT INTO direct_conversations (user_one_id, user_two_id) VALUES ($1, $2) RETURNING id`,
+        [userOne, userTwo]
+      );
+    }
+
+    const conversationId = convResult.rows[0].id;
+
+    const ins = await pool.query(
+      `INSERT INTO messages (content, sender_id, conversation_id) VALUES ($1, $2, $3) RETURNING id`,
+      [clean, currentUserId, conversationId]
+    );
+
+    const result = await fetchById(ins.rows[0].id);
+    const message = { ...result.rows[0], conversation_id: conversationId };
+
+    const io = req.app.get('io');
+
+    // Emit the message to the DM room — anyone who has this conversation open
+    // receives it instantly. Both users are auto-joined to existing DM rooms on connect,
+    // so the receiver gets this even if they haven't explicitly opened the DM in this session.
+    io.to(`dm:${conversationId}`).emit('new_message', message);
+
+    // Also notify both users' personal rooms so the ConversationList sidebar preview
+    // updates immediately, regardless of which view they're currently looking at.
+    io.to(`user:${currentUserId}`).emit('dm:preview_updated', { conversationId });
+    io.to(`user:${otherUserId}`).emit('dm:preview_updated', { conversationId });
+
+    res.status(201).json(message);
+  } catch (err) {
+    console.error('sendDMMessage error:', err);
+    res.status(500).json({ message: 'Failed to send DM' });
+  }
+};
+
+const getDMConversations = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const result = await pool.query(`
+      SELECT
+        dc.id AS conversation_id,
+        CASE WHEN dc.user_one_id = $1 THEN dc.user_two_id ELSE dc.user_one_id END AS other_user_id,
+        ou.name AS other_user_name,
+        ou.avatar_url AS other_user_avatar,
+        ou.email AS other_user_email,
+        lm.content AS last_message,
+        lm.created_at AS last_message_at,
+        lm.sender_id AS last_message_sender_id,
+        su.name AS last_message_sender_name
+      FROM direct_conversations dc
+      JOIN users ou ON ou.id = CASE WHEN dc.user_one_id = $1 THEN dc.user_two_id ELSE dc.user_one_id END
+      LEFT JOIN LATERAL (
+        SELECT content, created_at, sender_id FROM messages
+        WHERE conversation_id = dc.id ORDER BY created_at DESC LIMIT 1
+      ) lm ON true
+      LEFT JOIN users su ON su.id = lm.sender_id
+      WHERE dc.user_one_id = $1 OR dc.user_two_id = $1
+      ORDER BY lm.created_at DESC NULLS LAST
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('getDMConversations error:', err);
+    res.status(500).json({ message: 'Failed to fetch DM conversations' });
+  }
+};
+
+module.exports = {
+  getSpaceMessages, sendSpaceMessage, editSpaceMessage, deleteSpaceMessage,
+  addReaction, removeReaction, searchMessages,
+  getDMMessages, sendDMMessage, getDMConversations,
+};
