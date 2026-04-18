@@ -1,290 +1,233 @@
 import { useState, useRef, useEffect } from "react";
 import Avatar from "../ui/Avatar.jsx";
-
-// ---- Icon components ----
-
-const HamburgerIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="#5f6368">
-    <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
-  </svg>
-);
+import { useTheme } from "../../context/ThemeContext.jsx";
 
 const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="#9aa0a6">
-    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
   </svg>
 );
-
+const HamburgerIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+  </svg>
+);
 const QuestionIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" y1="17" x2="12.01" y2="17" />
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
   </svg>
 );
-
 const SettingsIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
 );
-
-const AppsGridIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="#5f6368">
-    <circle cx="5" cy="5" r="2" />
-    <circle cx="12" cy="5" r="2" />
-    <circle cx="19" cy="5" r="2" />
-    <circle cx="5" cy="12" r="2" />
-    <circle cx="12" cy="12" r="2" />
-    <circle cx="19" cy="12" r="2" />
-    <circle cx="5" cy="19" r="2" />
-    <circle cx="12" cy="19" r="2" />
-    <circle cx="19" cy="19" r="2" />
+const AppsIcon = () => (
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="var(--ws-text-muted)">
+    <circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/>
+    <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+    <circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
   </svg>
 );
-
-const CalendarIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
+const SunIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
   </svg>
 );
-
+const MoonIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+);
 const ChevronDownIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="6 9 12 15 18 9" />
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
   </svg>
 );
-
-const SignOutIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-
-const ProfileIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-
-// ---- Status options config ----
 
 const STATUS_OPTIONS = [
-  { id: "active", label: "Automatic", description: "Based on your activity", dotColor: "#34A853", icon: "●" },
-  { id: "dnd", label: "Do not disturb", description: "Mute chat notifications", dotColor: "#EA4335", icon: "⊘" },
-  { id: "away", label: "Set as away", description: null, dotColor: "#FBBC04", icon: "○" },
-  { id: "custom", label: "Add a status", description: null, dotColor: null, icon: "✎" },
+  { id: "active", label: "Automatic",       description: "Based on your activity", dotColor: "#34A853" },
+  { id: "dnd",    label: "Do not disturb",  description: "Mute notifications",     dotColor: "#EA4335" },
+  { id: "away",   label: "Set as away",     description: null,                     dotColor: "#FBBC04" },
 ];
 
-// ---- Dropdown components ----
+function useClickOutside(ref, callback) {
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) callback(); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [callback]);
+}
+
+function DropdownShell({ children, onClose }) {
+  const ref = useRef(null);
+  useClickOutside(ref, onClose);
+  return (
+    <div ref={ref} style={{
+      position: 'absolute', top: 48, right: 0, zIndex: 50,
+      background: 'var(--ws-bg)', border: '0.5px solid var(--ws-border)',
+      borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+      animation: 'fadeSlideDown 0.15s ease-out',
+    }}>
+      {children}
+    </div>
+  );
+}
 
 function StatusDropdown({ currentStatus, onSelect, onClose }) {
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
-
+  const ref = useRef(null);
+  useClickOutside(ref, onClose);
   return (
-    <div
-      ref={dropdownRef}
-      className="absolute top-12 right-0 w-[280px] bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-50"
-      style={{ animation: "fadeSlideDown 0.15s ease-out" }}
-    >
-      {STATUS_OPTIONS.map((option) => (
-        <div key={option.id}>
-          {option.id === "custom" && <div className="border-t border-gray-100 my-1" />}
-          <button
-            onClick={() => { onSelect(option.id); onClose(); }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
-          >
-            <span className="w-5 flex items-center justify-center text-[16px]" style={{ color: option.dotColor || "#5f6368" }}>
-              {option.icon}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-gray-800">{option.label}</p>
-              {option.description && (
-                <p className="text-[11px] text-gray-400">{option.description}</p>
-              )}
-            </div>
-            {currentStatus === option.id && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-          </button>
-        </div>
+    <div ref={ref} style={{
+      position: 'absolute', top: 44, right: 0, zIndex: 50, width: 280,
+      background: 'var(--ws-bg)', border: '0.5px solid var(--ws-border)',
+      borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+      animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
+    }}>
+      {STATUS_OPTIONS.map(opt => (
+        <button key={opt.id} onClick={() => { onSelect(opt.id); onClose(); }} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
+          textAlign: 'left', transition: 'background 0.1s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: opt.dotColor, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>{opt.label}</p>
+            {opt.description && <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0 }}>{opt.description}</p>}
+          </div>
+          {currentStatus === opt.id && (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          )}
+        </button>
       ))}
-      {/* Status is local-only for now — visible only to the current user */}
-      <div className="px-4 py-2 border-t border-gray-100 mt-1">
-        <p className="text-[11px] text-gray-400 leading-snug">
-          Status is visible to you only. Team-wide status coming in a later update.
+      <div style={{ padding: '8px 14px', borderTop: '0.5px solid var(--ws-border)' }}>
+        <p style={{ fontSize: 11, color: 'var(--ws-text-muted)' }}>
+          Team-wide status visibility coming soon
         </p>
       </div>
     </div>
   );
 }
 
-function AppsDropdown({ onClose }) {
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
-
-  return (
-    <div
-      ref={dropdownRef}
-      className="absolute top-12 right-0 w-[200px] bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
-      style={{ animation: "fadeSlideDown 0.15s ease-out" }}
-    >
-      <p className="px-4 py-1.5 text-[11px] font-semibold text-[#5f6368] uppercase tracking-wider">Google Apps</p>
-      <div className="w-full flex items-center gap-3 px-4 py-2.5">
-        <div className="w-9 h-9 flex items-center justify-center rounded-lg bg-[#f0f7ff] text-[#1a73e8]">
-          <CalendarIcon />
-        </div>
-        <span className="text-[13px] font-medium text-gray-700">Calendar</span>
-      </div>
-    </div>
-  );
-}
-
-// Help dropdown — quick tips for using the workspace
-function HelpDropdown({ onClose }) {
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
-
+function HelpDropdown({ onClose, onGoToContact }) {
+  const ref = useRef(null);
+  useClickOutside(ref, onClose);
   const tips = [
-    "Click a space or DM to start chatting",
-    "Hover over any message to react, edit, or delete",
-    "Use the search bar to find messages across conversations",
-    "Click your avatar to update your profile photo or name",
-    "Use the gear icon for chat settings and preferences",
+    'Hover a message to react, edit, or reply',
+    'Type @ in the message box to mention someone',
+    'Use the search bar to find messages',
+    'Click your avatar to update your profile',
+    'Gear icon opens chat settings and preferences',
   ];
-
   return (
-    <div
-      ref={dropdownRef}
-      className="absolute top-12 right-0 w-[300px] bg-white rounded-xl shadow-lg border border-gray-200 z-50"
-      style={{ animation: "fadeSlideDown 0.15s ease-out" }}
-    >
-      <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-        <p className="text-[14px] font-semibold text-gray-800 mb-0.5">Need help?</p>
-        <p className="text-[12px] text-gray-400">Quick tips to get you started</p>
+    <div ref={ref} style={{
+      position: 'absolute', top: 48, right: 0, zIndex: 50, width: 290,
+      background: 'var(--ws-bg)', border: '0.5px solid var(--ws-border)',
+      borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+      animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
+    }}>
+      <div style={{ padding: '14px 16px 10px', borderBottom: '0.5px solid var(--ws-border)' }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ws-text)', margin: '0 0 2px' }}>Quick tips</p>
+        <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0 }}>Getting around SHNOOR Workspace</p>
       </div>
-
-      <div className="py-2 px-4">
+      <div style={{ padding: '8px 0' }}>
         {tips.map((tip, i) => (
-          <div key={i} className="flex items-start gap-2.5 py-2">
-            <div className="w-[6px] h-[6px] rounded-full bg-[#0D9488] flex-shrink-0 mt-[5px]" />
-            <p className="text-[12px] text-gray-600 leading-snug">{tip}</p>
+          <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 16px', alignItems: 'flex-start' }}>
+            <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#0D9488', flexShrink: 0, marginTop: 6 }} />
+            <p style={{ fontSize: 12, color: 'var(--ws-text-muted)', margin: 0, lineHeight: 1.5 }}>{tip}</p>
           </div>
         ))}
       </div>
-
-      <div className="px-4 py-3 border-t border-gray-100">
-        <a
-          href="mailto:support@shnoor.com"
-          className="text-[12px] text-[#0D9488] font-medium"
-          style={{ textDecoration: "none" }}
+      <div style={{ padding: '10px 16px', borderTop: '0.5px solid var(--ws-border)' }}>
+        <button
+          onClick={() => { onClose(); onGoToContact?.(); }}
+          style={{ fontSize: 12, color: '#0D9488', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           Contact support →
-        </a>
+        </button>
       </div>
     </div>
   );
 }
 
-// Profile dropdown — avatar, name, Profile Settings and Sign Out
-// "Add Account" removed (internal single-account tool, not needed)
-function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOut }) {
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
-
-  const menuItems = [
-    {
-      id: "profile-settings",
-      icon: <ProfileIcon />,
-      label: "Profile Settings",
-      action: () => { onOpenProfileSettings(); onClose(); },
-    },
-    {
-      id: "sign-out",
-      icon: <SignOutIcon />,
-      label: "Sign Out",
-      action: () => { if (onSignOut) onSignOut(); onClose(); },
-    },
+function AppsDropdown({ onClose }) {
+  const ref = useRef(null);
+  useClickOutside(ref, onClose);
+  const apps = [
+    { name: 'Admin Panel', icon: '⭐', desc: 'Manage users and spaces' },
+    { name: 'Contact Form', icon: '✉️', desc: 'Submit a support request' },
   ];
-
   return (
-    <div
-      ref={dropdownRef}
-      className="absolute top-12 right-0 w-[280px] bg-white rounded-2xl shadow-xl border border-gray-200 py-3 z-50"
-      style={{ animation: "fadeSlideDown 0.15s ease-out" }}
-    >
-      {/* User info card at the top of the dropdown */}
-      <div className="px-5 pb-3 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <Avatar
-            initials={currentUser.initials}
-            color={currentUser.color}
-            size={40}
-            avatarUrl={currentUser.avatar_url}
-          />
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-semibold text-gray-900 truncate">{currentUser.name}</p>
-            <p className="text-[12px] text-gray-500 truncate">{currentUser.email}</p>
+    <div ref={ref} style={{
+      position: 'absolute', top: 48, right: 0, zIndex: 50, width: 220,
+      background: 'var(--ws-bg)', border: '0.5px solid var(--ws-border)',
+      borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+      animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
+    }}>
+      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--ws-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px 6px' }}>
+        Apps
+      </p>
+      {apps.map(app => (
+        <button key={app.name} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          <span style={{ fontSize: 18 }}>{app.icon}</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>{app.name}</p>
+            <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0 }}>{app.desc}</p>
           </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOut }) {
+  const ref = useRef(null);
+  useClickOutside(ref, onClose);
+  const items = [
+    { label: 'Profile Settings', onClick: () => { onOpenProfileSettings(); onClose(); } },
+    { label: 'Sign Out',         onClick: () => { onSignOut?.(); onClose(); }, danger: true },
+  ];
+  return (
+    <div ref={ref} style={{
+      position: 'absolute', top: 48, right: 0, zIndex: 50, width: 280,
+      background: 'var(--ws-bg)', border: '0.5px solid var(--ws-border)',
+      borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.14)',
+      animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
+    }}>
+      <div style={{ padding: '14px 16px', borderBottom: '0.5px solid var(--ws-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
+        <Avatar initials={currentUser.initials} color={currentUser.color} size={40} avatarUrl={currentUser.avatar_url} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--ws-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</p>
+          <p style={{ fontSize: 12, color: 'var(--ws-text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.email}</p>
         </div>
       </div>
-
-      {/* Menu items */}
-      <div className="py-1 mt-1">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={item.action}
-            className="w-full flex items-center gap-3 px-5 py-2.5 text-[13px] text-gray-700 hover:bg-gray-50 transition-colors text-left"
+      <div style={{ padding: '6px 0' }}>
+        {items.map(item => (
+          <button key={item.label} onClick={item.onClick} style={{
+            width: '100%', display: 'block', padding: '9px 16px', textAlign: 'left',
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 13, fontWeight: 500, color: item.danger ? '#ef4444' : 'var(--ws-text)',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            <span className="text-gray-500">{item.icon}</span>
-            <span className="font-medium">{item.label}</span>
+            {item.label}
           </button>
         ))}
       </div>
@@ -292,200 +235,163 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
   );
 }
 
-// ---- Main TopNavbar component ----
-
 export default function TopNavbar({
-  currentStatus,
-  onStatusChange,
-  onOpenChatSettings,       // gear icon → chat settings (theme, notifications, etc.)
-  onOpenProfileSettings,    // profile dropdown → profile settings (name, photo)
-  onToggleSidebar,
-  navSearchQuery,
-  onNavSearchChange,
-  onSignOut,
-  currentUser,
-  onOpenAdmin,
-  isAdmin,
+  currentStatus, onStatusChange,
+  onOpenChatSettings, onOpenProfileSettings,
+  onToggleSidebar, navSearchQuery, onNavSearchChange,
+  onSignOut, currentUser, onOpenAdmin, isAdmin,
+  onGoToContact,
 }) {
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showAppsMenu, setShowAppsMenu] = useState(false);
-  const [showHelpMenu, setShowHelpMenu] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const [showStatus,  setShowStatus]  = useState(false);
+  const [showHelp,    setShowHelp]    = useState(false);
+  const [showApps,    setShowApps]    = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
-  const statusDisplay = STATUS_OPTIONS.find((s) => s.id === currentStatus);
+  const statusDisplay = STATUS_OPTIONS.find(s => s.id === currentStatus);
+  const statusLabel   = currentStatus === 'active' ? 'Active' : currentStatus === 'dnd' ? 'DND' : 'Away';
 
-  const statusLabel =
-    currentStatus === "active" ? "Active" :
-    currentStatus === "dnd" ? "DND" :
-    currentStatus === "away" ? "Away" : "Status";
+  const navBtn = {
+    width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer',
+    transition: 'background 0.1s',
+  };
 
   return (
-    <div className="flex items-center h-[64px] px-4 border-b border-gray-200 bg-[#f8f9fa] flex-shrink-0 z-20">
-      {/* Left: hamburger + logo */}
-      <div className="flex items-center gap-3 min-w-[200px]">
-        <button
-          onClick={onToggleSidebar}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200/70 transition-colors"
-          title="Toggle sidebar"
+    <div style={{ display: 'flex', alignItems: 'center', height: 60, padding: '0 16px', borderBottom: `1px solid var(--ws-border)`, background: 'var(--ws-navbar)', flexShrink: 0, position: 'relative', zIndex: 20 }}>
+      {/* Hamburger + logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 180 }}>
+        <button style={navBtn} onClick={onToggleSidebar} title="Toggle sidebar"
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
           <HamburgerIcon />
         </button>
-        <div className="flex items-center gap-2.5">
-          <img
-            src="/shnoor-logo.png"
-            alt="SHNOOR"
-            className="w-8 h-8 rounded-lg object-contain"
-          />
-          <span className="text-[20px] font-normal text-[#5f6368] tracking-tight">Chat</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img src="/shnoor-logo.png" alt="SHNOOR" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
+          <span className="ws-navbar-title" style={{ fontSize: 18, fontWeight: 500, color: 'var(--ws-text-muted)', letterSpacing: '-0.3px' }}>Chat</span>
         </div>
       </div>
 
-      {/* Center: search */}
-      <div className="flex-1 flex justify-center px-8">
-        <div
-          className={`flex items-center gap-3 w-full max-w-[680px] rounded-full px-5 py-2.5 transition-all duration-200 ${
-            searchFocused
-              ? "bg-white shadow-md border border-gray-300"
-              : "bg-[#edf2fc] hover:bg-[#e3e8f0]"
-          }`}
-        >
+      {/* Search */}
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          width: '100%', maxWidth: 600, borderRadius: 24,
+          padding: '7px 16px',
+          background: searchFocused ? 'var(--ws-bg)' : 'var(--ws-surface-2)',
+          border: searchFocused ? '1.5px solid #0D9488' : '1px solid var(--ws-border)',
+          transition: 'all 0.2s',
+        }}>
           <SearchIcon />
           <input
-            value={navSearchQuery || ""}
-            onChange={(e) => onNavSearchChange && onNavSearchChange(e.target.value)}
-            placeholder="Search chat"
-            className="bg-transparent border-none outline-none text-[15px] text-gray-800 placeholder:text-[#5f6368] w-full font-normal"
+            value={navSearchQuery || ''}
+            onChange={e => onNavSearchChange?.(e.target.value)}
+            placeholder="Search conversations"
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
+            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: 'var(--ws-text)' }}
           />
           {navSearchQuery && (
-            <button
-              onClick={() => onNavSearchChange && onNavSearchChange("")}
-              className="text-gray-400 hover:text-gray-600 flex-shrink-0"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
-              </svg>
-            </button>
+            <button onClick={() => onNavSearchChange?.('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', lineHeight: 1 }}>✕</button>
           )}
         </div>
       </div>
 
-      {/* Right: status, help, settings, admin, apps, profile */}
-      <div className="flex items-center gap-1 min-w-[260px] justify-end">
-
+      {/* Right controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         {/* Status pill */}
-        <div className="relative">
-          <button
-            onClick={() => setShowStatusMenu(!showStatusMenu)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-300 hover:bg-white hover:shadow-sm transition-all"
-          >
-            <span
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-              style={{ backgroundColor: statusDisplay?.dotColor || "#34A853" }}
-            />
-            <span className="text-[13px] font-medium text-[#3c4043]">{statusLabel}</span>
+        <div className="ws-status-btn" style={{ position: 'relative' }}>
+          <button onClick={() => setShowStatus(p => !p)} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 20,
+            border: '0.5px solid var(--ws-border)', background: 'none', cursor: 'pointer',
+          }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: statusDisplay?.dotColor || '#34A853', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ws-text)' }}>{statusLabel}</span>
             <ChevronDownIcon />
           </button>
-          {showStatusMenu && (
-            <StatusDropdown
-              currentStatus={currentStatus}
-              onSelect={onStatusChange}
-              onClose={() => setShowStatusMenu(false)}
-            />
-          )}
+          {showStatus && <StatusDropdown currentStatus={currentStatus} onSelect={onStatusChange} onClose={() => setShowStatus(false)} />}
         </div>
 
-        {/* Help button */}
-        <div className="relative">
-          <button
-            onClick={() => setShowHelpMenu(!showHelpMenu)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200/70 transition-colors"
-            title="Help"
+        {/* Dark/light toggle — sun in dark mode, moon in light mode */}
+        <button style={navBtn} onClick={toggleTheme} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
+          {isDark ? <SunIcon /> : <MoonIcon />}
+        </button>
+
+        {/* Help */}
+        <div style={{ position: 'relative' }}>
+          <button style={navBtn} onClick={() => setShowHelp(p => !p)} title="Help"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
             <QuestionIcon />
           </button>
-          {showHelpMenu && (
-            <HelpDropdown onClose={() => setShowHelpMenu(false)} />
-          )}
+          {showHelp && <HelpDropdown onClose={() => setShowHelp(false)} onGoToContact={onGoToContact} />}
         </div>
 
-        {/* Chat settings gear — opens chat preferences, NOT profile settings */}
-        <button
-          onClick={onOpenChatSettings}
-          className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200/70 transition-colors"
-          title="Chat settings"
+        {/* Chat settings */}
+        <button style={navBtn} onClick={onOpenChatSettings} title="Chat settings"
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
           <SettingsIcon />
         </button>
 
-        {/* Admin panel shortcut — only visible to admins */}
+        {/* Admin star */}
         {isAdmin && (
-          <button
-            onClick={onOpenAdmin}
-            title="Admin panel"
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200/70 transition-colors"
+          <button style={navBtn} onClick={onOpenAdmin} title="Admin panel"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
             </svg>
           </button>
         )}
 
-        {/* Apps grid */}
-        <div className="relative">
-          <button
-            onClick={() => setShowAppsMenu(!showAppsMenu)}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200/70 transition-colors"
-            title="Apps"
+        {/* Apps */}
+        <div style={{ position: 'relative' }}>
+          <button style={navBtn} onClick={() => setShowApps(p => !p)} title="Apps"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            <AppsGridIcon />
+            <AppsIcon />
           </button>
-          {showAppsMenu && (
-            <AppsDropdown onClose={() => setShowAppsMenu(false)} />
-          )}
+          {showApps && <AppsDropdown onClose={() => setShowApps(false)} />}
         </div>
 
-        {/* Profile avatar — shows real photo if the user has uploaded one */}
-        <div className="relative ml-2">
-          <button
-            onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-gray-200/50 transition-colors"
+        {/* Profile avatar */}
+        <div style={{ position: 'relative', marginLeft: 6 }}>
+          <button onClick={() => setShowProfile(p => !p)} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px',
+            borderRadius: 24, background: 'none', border: 'none', cursor: 'pointer',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            <div className="text-right hidden lg:block">
-              <p className="text-[12px] font-medium text-[#3c4043] leading-tight">SHNOOR</p>
-              <p className="text-[10px] text-gray-500 leading-tight">International</p>
+            <div style={{ textAlign: 'right', display: 'none' }} className="hidden lg:block">
+              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--ws-text)', margin: 0 }}>SHNOOR</p>
+              <p style={{ fontSize: 10, color: 'var(--ws-text-muted)', margin: 0 }}>International</p>
             </div>
-            <div className="relative">
-              {/* Pass avatar_url so the real photo shows once the user uploads one */}
-              <Avatar
-                initials={currentUser.initials}
-                color={currentUser.color}
-                size={32}
-                avatarUrl={currentUser.avatar_url}
-              />
-              {/* Status indicator dot on the avatar */}
-              {currentStatus === "active" && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-[12px] h-[12px] bg-[#34A853] rounded-full border-2 border-[#f8f9fa]" />
-              )}
-              {currentStatus === "dnd" && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-[12px] h-[12px] bg-[#EA4335] rounded-full border-2 border-[#f8f9fa] flex items-center justify-center">
-                  <div className="w-[6px] h-[1.5px] bg-white rounded-full" />
-                </div>
-              )}
-              {currentStatus === "away" && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-[12px] h-[12px] bg-[#FBBC04] rounded-full border-2 border-[#f8f9fa]" />
-              )}
-              {currentStatus === "custom" && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-[12px] h-[12px] bg-[#9AA0A6] rounded-full border-2 border-[#f8f9fa]" />
-              )}
+            <div style={{ position: 'relative' }}>
+              <Avatar initials={currentUser.initials} color={currentUser.color} size={32} avatarUrl={currentUser.avatar_url} />
+              <span style={{
+                position: 'absolute', bottom: -1, right: -1, width: 10, height: 10,
+                borderRadius: '50%', border: '2px solid var(--ws-navbar)',
+                background: currentStatus === 'active' ? '#34A853' : currentStatus === 'dnd' ? '#EA4335' : '#FBBC04',
+              }} />
             </div>
           </button>
-          {showProfileMenu && (
+          {showProfile && (
             <ProfileDropdown
               currentUser={currentUser}
-              onClose={() => setShowProfileMenu(false)}
+              onClose={() => setShowProfile(false)}
               onOpenProfileSettings={onOpenProfileSettings}
               onSignOut={onSignOut}
             />

@@ -13,7 +13,10 @@ export function SocketProvider({ children }) {
   useEffect(() => {
     if (!user) return;
 
-    socketRef.current = io('http://localhost:5000', { withCredentials: true });
+    socketRef.current = io(
+      import.meta.env.VITE_API_URL || 'http://localhost:5000',
+      { withCredentials: true }
+    );
 
     socketRef.current.on('connect', () => setConnected(true));
     socketRef.current.on('disconnect', () => setConnected(false));
@@ -34,7 +37,7 @@ export function SocketProvider({ children }) {
   // Registers a socket event listener and returns a cleanup function.
   // Safe to call before the socket connects — returns a no-op if socket isn't ready.
   const on = (event, callback) => {
-    if (!socketRef.current) return () => {};
+    if (!socketRef.current) return () => { };
     const safe = (...args) => { try { callback(...args); } catch (e) { console.error(e); } };
     socketRef.current.on(event, safe);
     return () => socketRef.current?.off(event, safe);

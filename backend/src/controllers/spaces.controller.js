@@ -1,18 +1,18 @@
 const pool = require('../config/db');
 
-const getSpaces = async (req, res) => {
+exports.getSpaces = async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
         s.id, s.name, s.description, s.created_at,
         COUNT(DISTINCT sm.user_id)::int AS member_count,
         u.name AS created_by_name,
-        lm.content AS last_message,
+        lm.content    AS last_message,
         lm.created_at AS last_message_at,
-        lu.name AS last_message_sender
+        lu.name       AS last_message_sender
       FROM spaces s
       LEFT JOIN space_members sm ON sm.space_id = s.id
-      LEFT JOIN users u ON u.id = s.created_by
+      LEFT JOIN users u          ON u.id  = s.created_by
       LEFT JOIN LATERAL (
         SELECT content, created_at, sender_id FROM messages
         WHERE space_id = s.id ORDER BY created_at DESC LIMIT 1
@@ -28,21 +28,15 @@ const getSpaces = async (req, res) => {
   }
 };
 
-const createSpace = async (req, res) => {
+exports.createSpace = async (req, res) => {
   const { name, description } = req.body;
   if (!name?.trim()) return res.status(400).json({ message: 'Space name is required' });
-
   try {
     const result = await pool.query(
-      `INSERT INTO spaces (name, description, created_by) VALUES ($1, $2, $3) RETURNING *`,
+      `INSERT INTO spaces (name,description,created_by) VALUES ($1,$2,$3) RETURNING *`,
       [name.trim().toLowerCase(), description || null, req.user.id]
     );
-
-    await pool.query(
-      `INSERT INTO space_members (space_id, user_id) VALUES ($1, $2)`,
-      [result.rows[0].id, req.user.id]
-    );
-
+    await pool.query(`INSERT INTO space_members (space_id,user_id) VALUES ($1,$2)`, [result.rows[0].id, req.user.id]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'Space name already exists' });
@@ -51,15 +45,32 @@ const createSpace = async (req, res) => {
   }
 };
 
-const deleteSpace = async (req, res) => {
+exports.updateDescription = async (req, res) => {
+  const { id }          = req.params;
+  const { description } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE spaces SET description=$1 WHERE id=$2 RETURNING id,name,description`,
+      [description || null, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'Space not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('updateDescription error:', err);
+    res.status(500).json({ message: 'Failed to update description' });
+  }
+};
+
+exports.deleteSpace = async (req, res) => {
   const { id } = req.params;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE space_id = $1)`, [id]);
-    await client.query(`DELETE FROM messages WHERE space_id = $1`, [id]);
-    await client.query(`DELETE FROM space_members WHERE space_id = $1`, [id]);
-    await client.query(`DELETE FROM spaces WHERE id = $1`, [id]);
+    await client.query(`DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE space_id=$1)`, [id]);
+    await client.query(`DELETE FROM messages WHERE space_id=$1`, [id]);
+    await client.query(`DELETE FROM space_members WHERE space_id=$1`, [id]);
+    await client.query(`DELETE FROM user_space_reads WHERE space_id=$1`, [id]);
+    await client.query(`DELETE FROM spaces WHERE id=$1`, [id]);
     await client.query('COMMIT');
     res.json({ message: 'Space deleted' });
   } catch (err) {
@@ -71,25 +82,15 @@ const deleteSpace = async (req, res) => {
   }
 };
 
-const addMember = async (req, res) => {
+exports.addMember = async (req, res) => {
   const { id: spaceId } = req.params;
-  const { email } = req.body;
+  const { email }       = req.body;
   if (!email) return res.status(400).json({ message: 'Email is required' });
-
   try {
-    const userResult = await pool.query(
-      `SELECT id, name, email FROM users WHERE email = $1`,
-      [email.toLowerCase()]
-    );
-
+    const userResult = await pool.query(`SELECT id,name,email FROM users WHERE email=$1`, [email.toLowerCase()]);
     if (!userResult.rows.length) return res.status(404).json({ message: 'User not found' });
-
     const user = userResult.rows[0];
-    await pool.query(
-      `INSERT INTO space_members (space_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-      [spaceId, user.id]
-    );
-
+    await pool.query(`INSERT INTO space_members (space_id,user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [spaceId, user.id]);
     res.json({ message: `${user.name} added`, user });
   } catch (err) {
     console.error('addMember error:', err);
@@ -97,13 +98,10 @@ const addMember = async (req, res) => {
   }
 };
 
-const removeMember = async (req, res) => {
+exports.removeMember = async (req, res) => {
   const { id: spaceId, userId } = req.params;
   try {
-    await pool.query(
-      `DELETE FROM space_members WHERE space_id = $1 AND user_id = $2`,
-      [spaceId, userId]
-    );
+    await pool.query(`DELETE FROM space_members WHERE space_id=$1 AND user_id=$2`, [spaceId, userId]);
     res.json({ message: 'Member removed' });
   } catch (err) {
     console.error('removeMember error:', err);
@@ -111,15 +109,13 @@ const removeMember = async (req, res) => {
   }
 };
 
-const getSpaceMembers = async (req, res) => {
+exports.getSpaceMembers = async (req, res) => {
   const { id: spaceId } = req.params;
   try {
     const result = await pool.query(`
-      SELECT u.id, u.name, u.email, u.avatar_url, u.role, sm.joined_at
-      FROM space_members sm
-      JOIN users u ON u.id = sm.user_id
-      WHERE sm.space_id = $1
-      ORDER BY sm.joined_at ASC
+      SELECT u.id,u.name,u.email,u.avatar_url,u.role,sm.joined_at
+      FROM space_members sm JOIN users u ON u.id=sm.user_id
+      WHERE sm.space_id=$1 ORDER BY sm.joined_at ASC
     `, [spaceId]);
     res.json(result.rows);
   } catch (err) {
@@ -127,5 +123,3 @@ const getSpaceMembers = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch members' });
   }
 };
-
-module.exports = { getSpaces, createSpace, deleteSpace, addMember, removeMember, getSpaceMembers };

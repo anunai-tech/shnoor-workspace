@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-// userId → Set of socketIds — handles the same user having multiple browser tabs open
+// userId → Set<socketId>  — handles multiple open tabs per user
 const onlineUsers = new Map();
 
 const getOnlineUserIds = () => Array.from(onlineUsers.keys());
@@ -8,28 +8,18 @@ const getOnlineUserIds = () => Array.from(onlineUsers.keys());
 const socketHandler = (io) => {
   io.on('connection', async (socket) => {
     const userId = socket.request.session?.passport?.user;
+    if (!userId) { socket.disconnect(true); return; }
 
-    if (!userId) {
-      socket.disconnect(true);
-      return;
-    }
-
-    console.log(`Socket connected: ${socket.id} (user: ${userId})`);
-
-    // Personal room — used for targeted events like role changes and DM previews.
-    // Every socket is always in this room, regardless of which view the user has open.
+    // Personal room — receives targeted events like role changes,
+    // DM preview updates, read receipt confirmations
     socket.join(`user:${userId}`);
 
-    // Track this socket in the online map
-    if (!onlineUsers.has(userId)) {
-      onlineUsers.set(userId, new Set());
-    }
+    if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
     onlineUsers.get(userId).add(socket.id);
     io.emit('users:online', getOnlineUserIds());
 
-    // Auto-join all existing DM rooms for this user so they receive messages
-    // in real time even for DMs they haven't explicitly opened in the current session.
-    // New conversations are handled separately via the join_dm event.
+    // Auto-join every existing DM room so this user receives real-time DM
+    // messages even for conversations they haven't explicitly opened today
     try {
       const convs = await pool.query(
         `SELECT id FROM direct_conversations WHERE user_one_id = $1 OR user_two_id = $1`,
@@ -37,41 +27,35 @@ const socketHandler = (io) => {
       );
       convs.rows.forEach(({ id }) => socket.join(`dm:${id}`));
     } catch (err) {
-      console.error('Failed to auto-join DM rooms:', err);
+      console.error('auto-join DM rooms failed:', err);
     }
 
-    socket.on('join_space', (spaceId) => {
-      socket.join(`space:${spaceId}`);
-    });
+    socket.on('join_space', (spaceId) => socket.join(`space:${spaceId}`));
+    socket.on('leave_space', (spaceId) => socket.leave(`space:${spaceId}`));
 
-    socket.on('leave_space', (spaceId) => {
-      socket.leave(`space:${spaceId}`);
-    });
-
-    // Client sends the other user's ID — server looks up or creates the conversation
-    // and joins this socket to the correct room
+    // Client sends otherUserId — server resolves or creates the conversation
+    // and joins this socket to its room
     socket.on('join_dm', async (otherUserId) => {
       try {
-        const userOne = userId < otherUserId ? userId : otherUserId;
-        const userTwo = userId < otherUserId ? otherUserId : userId;
+        const a = userId < otherUserId ? userId : otherUserId;
+        const b = userId < otherUserId ? otherUserId : userId;
 
         let conv = await pool.query(
-          `SELECT id FROM direct_conversations WHERE user_one_id = $1 AND user_two_id = $2`,
-          [userOne, userTwo]
+          `SELECT id FROM direct_conversations WHERE user_one_id=$1 AND user_two_id=$2`,
+          [a, b]
         );
 
-        if (conv.rows.length === 0) {
+        if (!conv.rows.length) {
           conv = await pool.query(
-            `INSERT INTO direct_conversations (user_one_id, user_two_id) VALUES ($1, $2) RETURNING id`,
-            [userOne, userTwo]
+            `INSERT INTO direct_conversations (user_one_id,user_two_id) VALUES ($1,$2) RETURNING id`,
+            [a, b]
           );
-          // New conversation created — join the other user's active sockets to this room too
-          // so they immediately receive messages in real time without waiting for next login
+          // Join the other user's live sockets into this new room immediately
           const otherSockets = onlineUsers.get(otherUserId);
           if (otherSockets) {
-            otherSockets.forEach((sid) => {
-              io.sockets.sockets.get(sid)?.join(`dm:${conv.rows[0].id}`);
-            });
+            otherSockets.forEach((sid) =>
+              io.sockets.sockets.get(sid)?.join(`dm:${conv.rows[0].id}`)
+            );
           }
         }
 
@@ -83,22 +67,15 @@ const socketHandler = (io) => {
       }
     });
 
-    socket.on('leave_dm', (conversationId) => {
-      socket.leave(`dm:${conversationId}`);
-    });
+    socket.on('leave_dm', (conversationId) => socket.leave(`dm:${conversationId}`));
 
-    // Per-socket typing timers — key is the room string, value is a timeout handle.
-    // If typing:stop never arrives (tab closed, crash), this auto-clears after 5 seconds.
+    // Typing — per-socket timer auto-clears after 5s if typing:stop never arrives
     const typingTimers = {};
 
     socket.on('typing:start', ({ roomType, roomId, userName }) => {
       const room = roomType === 'space' ? `space:${roomId}` : `dm:${roomId}`;
-
-      // Reset the timer — user is still typing
       if (typingTimers[room]) clearTimeout(typingTimers[room]);
-
       socket.to(room).emit('typing:update', { userId, userName, isTyping: true });
-
       typingTimers[room] = setTimeout(() => {
         socket.to(room).emit('typing:update', { userId, isTyping: false });
         delete typingTimers[room];
@@ -107,24 +84,46 @@ const socketHandler = (io) => {
 
     socket.on('typing:stop', ({ roomType, roomId }) => {
       const room = roomType === 'space' ? `space:${roomId}` : `dm:${roomId}`;
-
-      if (typingTimers[room]) {
-        clearTimeout(typingTimers[room]);
-        delete typingTimers[room];
-      }
+      if (typingTimers[room]) { clearTimeout(typingTimers[room]); delete typingTimers[room]; }
       socket.to(room).emit('typing:update', { userId, isTyping: false });
     });
 
+    // Client tells the server it has read a conversation — server broadcasts
+    // the read event back to the room so the sender's "Seen" indicator updates
+    socket.on('mark:space_read', async (spaceId) => {
+      try {
+        await pool.query(
+          `INSERT INTO user_space_reads (user_id, space_id, last_read_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (user_id, space_id) DO UPDATE SET last_read_at = NOW()`,
+          [userId, spaceId]
+        );
+        socket.to(`space:${spaceId}`).emit('read:space_updated', { userId, spaceId });
+      } catch (err) {
+        console.error('mark:space_read error:', err);
+      }
+    });
+
+    socket.on('mark:dm_read', async (conversationId) => {
+      try {
+        await pool.query(
+          `INSERT INTO user_dm_reads (user_id, conversation_id, last_read_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (user_id, conversation_id) DO UPDATE SET last_read_at = NOW()`,
+          [userId, conversationId]
+        );
+        socket.to(`dm:${conversationId}`).emit('read:dm_updated', { userId, conversationId });
+      } catch (err) {
+        console.error('mark:dm_read error:', err);
+      }
+    });
+
     socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id}`);
-
-      // Clear any pending typing timers so ghost indicators don't linger
       Object.values(typingTimers).forEach(clearTimeout);
-
       const sockets = onlineUsers.get(userId);
       if (sockets) {
         sockets.delete(socket.id);
-        if (sockets.size === 0) onlineUsers.delete(userId);
+        if (!sockets.size) onlineUsers.delete(userId);
       }
       io.emit('users:online', getOnlineUserIds());
     });

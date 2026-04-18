@@ -125,12 +125,7 @@ export default function AdminContactQueries({ queries, setQueries }) {
                   Mark as Resolved
                 </button>
               )}
-              <button
-                onClick={() => alert(`Reply to: ${q.email}`)}
-                style={btnGhost(isDark)}
-              >
-                Reply by Email
-              </button>
+              
             </div>
           </div>
         ))}

@@ -1,25 +1,31 @@
-const router = require('express').Router();
+const router  = require('express').Router();
 const { requireAuth } = require('../middleware/auth.middleware');
-const {
-  getSpaceMessages, sendSpaceMessage, editSpaceMessage, deleteSpaceMessage,
-  addReaction, removeReaction, searchMessages,
-  getDMMessages, sendDMMessage, getDMConversations,
-} = require('../controllers/messages.controller');
+const c = require('../controllers/messages.controller');
 
-// Must be before /dm/:userId/messages to avoid 'conversations' being treated as userId
-router.get('/dm/conversations', requireAuth, getDMConversations);
+// Space messages
+router.get( '/spaces/:id/messages',              requireAuth, c.getSpaceMessages);
+router.post('/spaces/:id/messages',              requireAuth, c.sendSpaceMessage);
+router.patch('/spaces/:id/messages/:msgId',      requireAuth, c.editSpaceMessage);
+router.delete('/spaces/:id/messages/:msgId',     requireAuth, c.deleteSpaceMessage);
 
-router.get('/search', requireAuth, searchMessages);
+// Thread replies for a specific message
+router.get('/messages/:msgId/thread',            requireAuth, c.getThreadReplies);
 
-router.get('/spaces/:id/messages', requireAuth, getSpaceMessages);
-router.post('/spaces/:id/messages', requireAuth, sendSpaceMessage);
-router.patch('/spaces/:id/messages/:msgId', requireAuth, editSpaceMessage);
-router.delete('/spaces/:id/messages/:msgId', requireAuth, deleteSpaceMessage);
+// Reactions
+router.post(  '/messages/:msgId/reactions',      requireAuth, c.addReaction);
+router.delete('/messages/:msgId/reactions',      requireAuth, c.removeReaction);
 
-router.post('/messages/:msgId/reactions', requireAuth, addReaction);
-router.delete('/messages/:msgId/reactions', requireAuth, removeReaction);
+// DM messages
+router.get( '/dm/:userId/messages',              requireAuth, c.getDMMessages);
+router.post('/dm/:userId/messages',              requireAuth, c.sendDMMessage);
 
-router.get('/dm/:userId/messages', requireAuth, getDMMessages);
-router.post('/dm/:userId/messages', requireAuth, sendDMMessage);
+// DM conversations list with cursor pagination
+router.get('/dm/conversations',                  requireAuth, c.getDMConversations);
+
+// Full-text message search
+router.get('/search',                            requireAuth, c.searchMessages);
+
+// File attachment upload to Cloudinary
+router.post('/upload', requireAuth, c.uploadMiddleware, c.uploadAttachment);
 
 module.exports = router;

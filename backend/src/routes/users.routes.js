@@ -1,28 +1,20 @@
 const router = require('express').Router();
 const { requireAuth, requireAdmin } = require('../middleware/auth.middleware');
-const {
-  getUsers,
-  getAllUsersAdmin,
-  getMe,
-  updateMe,
-  updateAvatar,
-  updateUserRole,
-  updateUserStatus,
-} = require('../controllers/users.controller');
+const c = require('../controllers/users.controller');
 
-// Workspace member list — active users only (no auth restriction beyond session)
-router.get('/', requireAuth, getUsers);
-
-// Admin-only: returns all users including deactivated ones, for the admin users page
-router.get('/admin-all', requireAuth, requireAdmin, getAllUsersAdmin);
-
-// Current user profile endpoints
-router.get('/me', requireAuth, getMe);
-router.patch('/me', requireAuth, updateMe);
-router.patch('/me/avatar', requireAuth, updateAvatar);
-
-// Admin-only: manage other users
-router.patch('/:id/role', requireAuth, requireAdmin, updateUserRole);
-router.patch('/:id/status', requireAuth, requireAdmin, updateUserStatus);
+router.get(   '/',             requireAuth,               c.getUsers);
+router.get(   '/admin-all',    requireAuth, requireAdmin, c.getAllUsersAdmin);
+router.get(   '/me',           requireAuth,               c.getMe);
+router.patch( '/me',           requireAuth,               c.updateMe);
+// Legacy base64 avatar (still works for existing uploads)
+router.patch( '/me/avatar',    requireAuth,               c.updateAvatar);
+// New Cloudinary avatar upload
+router.post(  '/me/avatar/upload', requireAuth, c.avatarUploadMiddleware, c.uploadAvatarToCloud);
+// Notification / app preferences
+router.get(   '/me/preferences', requireAuth,             c.getPreferences);
+router.patch( '/me/preferences', requireAuth,             c.updatePreferences);
+// Admin actions on other users
+router.patch( '/:id/role',     requireAuth, requireAdmin, c.updateUserRole);
+router.patch( '/:id/status',   requireAuth, requireAdmin, c.updateUserStatus);
 
 module.exports = router;

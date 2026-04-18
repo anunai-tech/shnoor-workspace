@@ -9,13 +9,16 @@ export const createSpace = (name, description) =>
 export const deleteSpaceAPI = (spaceId) =>
   api.delete(`/api/spaces/${spaceId}`).then(r => r.data);
 
+export const updateSpaceDescription = (spaceId, description) =>
+  api.patch(`/api/spaces/${spaceId}/description`, { description }).then(r => r.data);
+
 export const getSpaceMessages = (spaceId, before = null) => {
   const params = before ? `?before=${before}&limit=50` : '?limit=50';
   return api.get(`/api/spaces/${spaceId}/messages${params}`).then(r => r.data);
 };
 
-export const sendSpaceMessage = (spaceId, content) =>
-  api.post(`/api/spaces/${spaceId}/messages`, { content }).then(r => r.data);
+export const sendSpaceMessage = (spaceId, content, parentMessageId = null, attachments = []) =>
+  api.post(`/api/spaces/${spaceId}/messages`, { content, parent_message_id: parentMessageId, attachments }).then(r => r.data);
 
 export const editSpaceMessage = (spaceId, msgId, content) =>
   api.patch(`/api/spaces/${spaceId}/messages/${msgId}`, { content }).then(r => r.data);

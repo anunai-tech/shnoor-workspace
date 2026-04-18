@@ -1,10 +1,8 @@
 import api from './axios';
 
-// Workspace member list — active users only
 export const getAllUsers = () =>
   api.get('/api/users').then(r => r.data);
 
-// Admin panel — returns all users including deactivated
 export const getAllUsersAdmin = () =>
   api.get('/api/users/admin-all').then(r => r.data);
 
@@ -13,14 +11,28 @@ export const getDMMessages = (userId, before = null) => {
   return api.get(`/api/dm/${userId}/messages${params}`).then(r => r.data);
 };
 
-export const sendDMMessage = (userId, content) =>
-  api.post(`/api/dm/${userId}/messages`, { content }).then(r => r.data);
+export const sendDMMessage = (userId, content, parentMessageId = null, attachments = []) =>
+  api.post(`/api/dm/${userId}/messages`, { content, parent_message_id: parentMessageId, attachments }).then(r => r.data);
 
 export const updateMyProfile = (name) =>
   api.patch('/api/users/me', { name }).then(r => r.data);
 
+// Old base64 avatar — kept for compatibility but new code uses uploadAvatarToCloud
 export const updateMyAvatar = (avatar) =>
   api.patch('/api/users/me/avatar', { avatar }).then(r => r.data);
+
+// New Cloudinary avatar upload — sends the actual File object
+export const uploadAvatarToCloud = (file) => {
+  const form = new FormData();
+  form.append('avatar', file);
+  return api.post('/api/users/me/avatar/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
+};
+
+export const getPreferences = () =>
+  api.get('/api/users/me/preferences').then(r => r.data);
+
+export const updatePreferences = (preferences) =>
+  api.patch('/api/users/me/preferences', { preferences }).then(r => r.data);
 
 export const updateUserRole = (userId, role) =>
   api.patch(`/api/users/${userId}/role`, { role }).then(r => r.data);

@@ -1,6 +1,8 @@
 export default function LoginPage({ onNavigate }) {
   const handleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`;
+    // Use the Vercel env var so this works in production
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    window.location.href = `${apiUrl}/auth/google`;
   };
 
   return (
