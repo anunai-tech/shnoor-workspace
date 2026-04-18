@@ -61,14 +61,11 @@ const sessionMiddleware = session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    // sameSite: 'none' is required for cross-domain cookies (Render → Vercel).
-    // Without this, the browser silently drops the session cookie and every
-    // request looks like a new unauthenticated visitor.
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  },
+  secure: process.env.NODE_ENV === 'production',
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+},
 });
 
 app.use(sessionMiddleware);
