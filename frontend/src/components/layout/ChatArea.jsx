@@ -428,10 +428,14 @@ export default function ChatArea({
     inputRef.current?.focus();
   };
 
-  const handleEditSave = async () => {
+const handleEditSave = async () => {
     if (!editContent.trim() || !editingId) return;
-    await onEditMessage(editingId, editContent.trim());
-    setEditingId(null); setEditContent('');
+    try {
+      await onEditMessage(editingId, editContent.trim());
+      setEditingId(null); setEditContent('');
+    } catch {
+      // Keep textarea open so user knows it failed
+    }
   };
 
   const handleDeleteConfirm = async () => {

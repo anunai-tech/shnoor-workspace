@@ -221,11 +221,13 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     if (!activeSpace) return;
     try {
       await editSpaceMessage(activeSpace.id, msgId, content);
-      // Update locally immediately — don't rely on socket
       setMessages(prev => prev.map(m =>
         m.id === msgId ? { ...m, text: content, is_edited: true } : m
       ));
-    } catch { showToast('Failed to edit message', 'error'); }
+    } catch (err) {
+      showToast('Failed to edit message', 'error');
+      throw err; 
+    }
   };
 
   const handleDeleteMessage = async (msgId) => {

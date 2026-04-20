@@ -11,7 +11,6 @@ const upload = multer({
 exports.uploadMiddleware = upload.single('file');
 
 // Base SELECT used by every message fetch — returns reactions, parent info,
-// reply count, and attachments in one shot
 const MSG_SELECT = `
   SELECT
     m.id,
@@ -34,7 +33,7 @@ const MSG_SELECT = `
       json_agg(
         json_build_object('emoji', mr.emoji, 'userId', mr.user_id, 'userName', ru.name)
       ) FILTER (WHERE mr.id IS NOT NULL),
-      '[]'
+      '[]'::json
     ) AS reactions
   FROM messages m
   JOIN  users u  ON u.id  = m.sender_id
@@ -138,11 +137,17 @@ exports.editSpaceMessage = async (req, res) => {
   if (!content?.trim()) return res.status(400).json({ message: 'Content cannot be empty' });
   const clean = xss(content.trim());
   try {
-    const check = await pool.query(`SELECT sender_id FROM messages WHERE id=$1 AND space_id=$2`, [msgId, spaceId]);
-    if (!check.rows.length) return res.status(404).json({ message: 'Message not found' });
-    if (check.rows[0].sender_id !== req.user.id) return res.status(403).json({ message: 'You can only edit your own messages' });
-    await pool.query(`UPDATE messages SET content=$1,is_edited=true,updated_at=NOW() WHERE id=$2`, [clean, msgId]);
-    const result  = await fetchById(msgId);
+    // Single atomic UPDATE — checks ownership + edits in one query, no fetchById needed
+    const result = await pool.query(
+      `UPDATE messages
+       SET content = $1, is_edited = true, updated_at = NOW()
+       WHERE id = $2 AND space_id = $3 AND sender_id = $4
+       RETURNING id, content, is_edited, updated_at, sender_id`,
+      [clean, msgId, spaceId, req.user.id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ message: 'Message not found or permission denied' });
+    }
     const message = { ...result.rows[0], space_id: spaceId };
     req.app.get('io').to(`space:${spaceId}`).emit('message:edited', message);
     res.json(message);
