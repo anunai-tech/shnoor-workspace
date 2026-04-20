@@ -24,9 +24,9 @@ import CalendarView from './components/calendar/CalendarView.jsx';
 
 import { getSpaces, getSpaceMessages, sendSpaceMessage, editSpaceMessage, deleteSpaceMessage, getSpaceMembers } from './api/spaces.js';
 import { getAllUsers, getDMMessages, sendDMMessage } from './api/users.js';
-import { addReaction, removeReaction, getDMConversations } from './api/messages.js';
+import { addReaction, removeReaction, getDMConversations, editDMMessage, deleteDMMessage } from './api/messages.js';
 
-// anything under 768px is mobile
+// detect if we're on a small screen — re-checks on window resize
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
@@ -42,57 +42,47 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
   const { showToast } = useToast();
   const isMobile = useIsMobile();
   const {
-    connected,
-    joinSpace, leaveSpace, joinDM,
+    connected, joinSpace, leaveSpace, joinDM,
     onNewMessage, onMessageEdited, onMessageDeleted, onReactionUpdated,
     onDMJoined, onTypingUpdate, emitTyping, onlineUsers,
     onDMPreviewUpdated, onUserRoleChanged,
   } = useSocket();
 
   const currentUser = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
+    id: user.id, name: user.name, email: user.email,
     initials: user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-    color: '#0D9488',
-    avatar_url: user.avatar_url,
+    color: '#0D9488', avatar_url: user.avatar_url,
   };
 
-  const [spaces, setSpaces]           = useState([]);
-  const [allUsers, setAllUsers]       = useState([]);
+  const [spaces, setSpaces]               = useState([]);
+  const [allUsers, setAllUsers]           = useState([]);
   const [dmConversations, setDmConversations] = useState([]);
-  const [activeSpace, setActiveSpace] = useState(null);
-  const [activeDM, setActiveDM]       = useState(null);
-  const [activeView, setActiveView]   = useState('home');
-  const [messages, setMessages]       = useState([]);
+  const [activeSpace, setActiveSpace]     = useState(null);
+  const [activeDM, setActiveDM]           = useState(null);
+  const [activeView, setActiveView]       = useState('home');
+  const [messages, setMessages]           = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [hasMore, setHasMore]         = useState(false);
-  const [spaceMembers, setSpaceMembers] = useState([]);
+  const [hasMore, setHasMore]             = useState(false);
+  const [spaceMembers, setSpaceMembers]   = useState([]);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showChatSettings, setShowChatSettings]       = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [currentStatus, setCurrentStatus] = useState('active');
-  const [isMaximized, setIsMaximized]   = useState(false);
+  const [isMaximized, setIsMaximized]     = useState(false);
   const [navSearchQuery, setNavSearchQuery] = useState('');
-  const [typingUsers, setTypingUsers]   = useState([]);
+  const [typingUsers, setTypingUsers]     = useState([]);
   const [activeDMConversationId, setActiveDMConversationId] = useState(null);
 
-  // mobile nav state - which tab is selected
-  // 'home' shows conversation list, 'dms'/'spaces' filter the list
-  // 'calendar' opens calendar, 'chat' means a conversation is open
+  // mobile-specific state — which bottom nav tab is active and which screen shows
   const [activeMobileTab, setActiveMobileTab] = useState('home');
+  const [mobileScreen, setMobileScreen]       = useState('list'); // 'list' or 'chat'
 
-  // on mobile only one panel shows at a time
-  // 'list' = show conversation list, 'chat' = show chat area
-  const [mobileScreen, setMobileScreen] = useState('list');
-
-  // calendar back button listener
+  // listen for calendar back button event fired from CalendarView
   useEffect(() => {
     const goBack = () => {
       setActiveView('home');
       setActiveSpace(null);
       setActiveDM(null);
-      if (isMobile) setMobileScreen('list');
+      if (isMobile) { setMobileScreen('list'); setActiveMobileTab('home'); }
     };
     window.addEventListener('calendar:back', goBack);
     return () => window.removeEventListener('calendar:back', goBack);
@@ -106,9 +96,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
 
   useEffect(() => {
     if (!connected) return;
-    return onDMPreviewUpdated(() => {
-      getDMConversations().then(setDmConversations).catch(() => {});
-    });
+    return onDMPreviewUpdated(() => getDMConversations().then(setDmConversations).catch(() => {}));
   }, [connected]);
 
   useEffect(() => {
@@ -178,6 +166,16 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
         if (!msg.conversation_id) return;
         setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, formatMsg(msg)]);
       }),
+      // handle DM message edited via socket
+      onMessageEdited((msg) => {
+        if (!msg.conversation_id) return;
+        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, text: msg.content, is_edited: true } : m));
+      }),
+      // handle DM message deleted via socket
+      onMessageDeleted(({ messageId, conversationId }) => {
+        if (!conversationId) return;
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+      }),
       onReactionUpdated(({ messageId, reactions }) => {
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions } : m));
       }),
@@ -197,6 +195,8 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     color: '#0D9488', avatar_url: m.avatar_url,
     time: new Date(m.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
     text: m.content, is_edited: m.is_edited, reactions: m.reactions || [],
+    parentContent: m.parent_content, parentSenderName: m.parent_sender_name,
+    replyCount: m.reply_count || 0, attachments: m.attachments || [],
   });
 
   const formattedMessages = messages
@@ -204,10 +204,8 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     .map(m => m.senderId ? m : formatMsg(m));
 
   const formattedSpaces = spaces.map(s => ({
-    id: s.id, name: s.name, unread: 0,
-    memberCount: s.member_count, members: [],
-    last_message: s.last_message, last_message_at: s.last_message_at,
-    last_message_sender: s.last_message_sender,
+    id: s.id, name: s.name, unread: 0, memberCount: s.member_count, members: [],
+    last_message: s.last_message, last_message_at: s.last_message_at, last_message_sender: s.last_message_sender,
   }));
 
   const dmUsers = allUsers.filter(u => u.id !== user.id).map(u => ({
@@ -219,7 +217,6 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
   const handleSelectSpace = async (space) => {
     setActiveSpace(space); setActiveDM(null); setActiveView('space');
     setSpaceMembers([]);
-    // on mobile open the chat screen right away
     if (isMobile) setMobileScreen('chat');
     try {
       const members = await getSpaceMembers(space.id);
@@ -230,11 +227,9 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
   const handleSelectDM = (dmUser) => {
     setActiveDM(dmUser); setActiveSpace(null); setActiveView('dm');
     setActiveDMConversationId(null);
-    // on mobile open the chat screen right away
     if (isMobile) setMobileScreen('chat');
   };
 
-  // back button handler - on mobile goes back to list, on desktop goes home
   const handleBackToHome = () => {
     setActiveSpace(null); setActiveDM(null);
     setActiveView('home'); setIsMaximized(false);
@@ -242,46 +237,58 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     if (isMobile) setMobileScreen('list');
   };
 
-  // bottom nav tab change handler
+  // bottom nav tab taps on mobile
   const handleMobileTabChange = (tab) => {
     setActiveMobileTab(tab);
     if (tab === 'calendar') {
       setActiveView('calendar');
-      setMobileScreen('list'); // calendar handles its own full screen
+    } else if (tab === 'mentions') {
+      setActiveSpace(null); setActiveDM(null);
+      setActiveView('mentions'); setIsMaximized(false);
+      setMobileScreen('list');
     } else {
-      // switching tabs goes back to the list
       setActiveView('home');
       setMobileScreen('list');
-      setActiveSpace(null);
-      setActiveDM(null);
+      setActiveSpace(null); setActiveDM(null);
     }
   };
 
-  const handleSendMessage = async (text) => {
-    if (!text.trim()) return;
+  // FIXED: accepts parentMessageId + attachments so reply and file send work
+  const handleSendMessage = async (text, parentMessageId = null, attachments = []) => {
+    // allow sending if there's text OR files attached
+    if (!text.trim() && !attachments?.length) return;
     try {
-      if (activeView === 'space' && activeSpace) await sendSpaceMessage(activeSpace.id, text);
-      else if (activeView === 'dm' && activeDM) await sendDMMessage(activeDM.id, text);
+      if (activeView === 'space' && activeSpace)
+        await sendSpaceMessage(activeSpace.id, text, parentMessageId, attachments);
+      else if (activeView === 'dm' && activeDM)
+        await sendDMMessage(activeDM.id, text, parentMessageId, attachments);
     } catch { showToast('Failed to send message', 'error'); }
   };
 
+  // FIXED: handles both space and DM — no more !activeSpace early return
   const handleEditMessage = async (msgId, content) => {
-    if (!activeSpace) return;
     try {
-      await editSpaceMessage(activeSpace.id, msgId, content);
+      if (activeView === 'space' && activeSpace) {
+        await editSpaceMessage(activeSpace.id, msgId, content);
+      } else if (activeView === 'dm') {
+        await editDMMessage(msgId, content);
+      }
       setMessages(prev => prev.map(m =>
         m.id === msgId ? { ...m, text: content, is_edited: true } : m
       ));
     } catch (err) {
       showToast('Failed to edit message', 'error');
-      throw err;
+      throw err; // rethrow so ChatArea keeps the textarea open
     }
   };
 
+  // FIXED: handles both space and DM
   const handleDeleteMessage = async (msgId) => {
-    if (!activeSpace) return;
     try {
-      await deleteSpaceMessage(activeSpace.id, msgId);
+      if (activeView === 'space' && activeSpace)
+        await deleteSpaceMessage(activeSpace.id, msgId);
+      else if (activeView === 'dm')
+        await deleteDMMessage(msgId);
       setMessages(prev => prev.filter(m => m.id !== msgId));
     } catch { showToast('Failed to delete message', 'error'); }
   };
@@ -305,9 +312,14 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     if (!oldest) return;
     try {
       let data;
-      if (activeView === 'space' && activeSpace) data = await getSpaceMessages(activeSpace.id, oldest.created_at || oldest.time);
-      else if (activeView === 'dm' && activeDM)   data = await getDMMessages(activeDM.id, oldest.created_at);
-      if (data?.messages) { setMessages(prev => [...data.messages.map(formatMsg), ...prev]); setHasMore(data.hasMore || false); }
+      if (activeView === 'space' && activeSpace)
+        data = await getSpaceMessages(activeSpace.id, oldest.created_at || oldest.time);
+      else if (activeView === 'dm' && activeDM)
+        data = await getDMMessages(activeDM.id, oldest.created_at);
+      if (data?.messages) {
+        setMessages(prev => [...data.messages.map(formatMsg), ...prev]);
+        setHasMore(data.hasMore || false);
+      }
     } catch { showToast('Failed to load more messages', 'error'); }
   };
 
@@ -318,20 +330,14 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
 
   const chatTitle   = activeView === 'space' && activeSpace ? activeSpace.name : activeDM?.name || '';
   const memberCount = activeView === 'space' && activeSpace ? activeSpace.memberCount : null;
-
-  // on mobile figure out what to show
-  // mobileScreen = 'chat' means user tapped a conversation
-  // mobileScreen = 'list' means show the conversation list
   const showMobileChatScreen = isMobile && mobileScreen === 'chat';
   const showMobileListScreen = isMobile && mobileScreen === 'list';
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white"
-      style={{ paddingBottom: isMobile ? 60 : 0 }}>
+    <div className="flex flex-col h-screen w-screen overflow-hidden"
+      style={{ background: 'var(--ws-bg)', paddingBottom: isMobile ? 60 : 0 }}>
 
       <TopNavbar
-        currentStatus={currentStatus}
-        onStatusChange={setCurrentStatus}
         onOpenChatSettings={() => setShowChatSettings(true)}
         onOpenProfileSettings={() => setShowProfileSettings(true)}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -342,7 +348,6 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
         onOpenAdmin={onOpenAdmin}
         isAdmin={user.role === 'admin'}
         onOpenCalendar={() => setActiveView('calendar')}
-        onOpenChat={() => { setActiveSpace(null); setActiveDM(null); setActiveView('home'); }}
         activeView={activeView}
         isMobile={isMobile}
         onMobileBack={handleBackToHome}
@@ -352,10 +357,9 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
 
       <div className="flex flex-1 overflow-hidden">
 
-        {/* left sidebar hidden on mobile via CSS class */}
+        {/* left sidebar — hidden on mobile entirely */}
         {!isMobile && activeView !== 'calendar' && (
           <LeftSidebar
-            className="ws-left-sidebar"
             isOpen={isSidebarOpen}
             onSelectSpace={handleSelectSpace}
             onSelectDM={handleSelectDM}
@@ -375,10 +379,9 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
           <CalendarView isSidebarOpen={isSidebarOpen} navSearchQuery={navSearchQuery} />
         ) : (
           <>
-            {/* on desktop always show both, on mobile show only one at a time */}
+            {/* conversation list: always on desktop, only when mobileScreen='list' on mobile */}
             {(!isMobile || showMobileListScreen) && !isMaximized && (
               <ConversationList
-                className="ws-conversation-list"
                 activeView={activeView}
                 onSelectConversation={(item) => {
                   if (item.type === 'space') { const s = formattedSpaces.find(s => s.id === item.id); if (s) handleSelectSpace(s); }
@@ -392,13 +395,15 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
                 currentUserId={user.id}
                 isMobile={isMobile}
                 activeMobileTab={activeMobileTab}
+                dmUsers={dmUsers}
+                onSelectDM={handleSelectDM}
+                onlineUsers={onlineUsers}
               />
             )}
 
-            {/* only show chat area on mobile when user tapped a conversation */}
+            {/* chat area: always on desktop, only when mobileScreen='chat' on mobile */}
             {(!isMobile || showMobileChatScreen) && (
               <ChatArea
-                className="ws-chat-area"
                 title={chatTitle}
                 memberCount={memberCount}
                 messages={messagesLoading ? [] : formattedMessages}
@@ -410,6 +415,8 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
                 onToggleMaximize={() => setIsMaximized(prev => !prev)}
                 spaceMembers={spaceMembers}
                 currentUserId={user.id}
+                currentUser={currentUser}
+                allUsers={dmUsers}
                 onEditMessage={handleEditMessage}
                 onDeleteMessage={handleDeleteMessage}
                 onAddReaction={handleAddReaction}
@@ -426,16 +433,13 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
           </>
         )}
 
-        {/* right rail hidden on mobile */}
+        {/* right rail — hidden on mobile */}
         {!isMobile && activeView !== 'calendar' && (
-          <RightIconRail
-            className="ws-right-rail"
-            onNavigateToCalendar={() => setActiveView('calendar')}
-          />
+          <RightIconRail onNavigateToCalendar={() => setActiveView('calendar')} />
         )}
       </div>
 
-      {/* bottom nav only shows on mobile */}
+      {/* bottom nav only on mobile */}
       {isMobile && (
         <BottomNav
           activeMobileTab={activeMobileTab}

@@ -11,9 +11,14 @@ export const getDMMessages = (userId, before = null) => {
   return api.get(`/api/dm/${userId}/messages${params}`).then(r => r.data);
 };
 
-export const sendDMMessage = (userId, content, parentMessageId = null, attachments = []) =>
-  api.post(`/api/dm/${userId}/messages`, { content, parent_message_id: parentMessageId, attachments }).then(r => r.data);
-
+// parentMessageId and attachments were missing before — needed for reply and file send
+export const sendDMMessage = (otherUserId, content, parentMessageId = null, attachments = []) =>
+  api.post(`/api/dm/${otherUserId}/messages`, {
+    content,
+    parent_message_id: parentMessageId || null,
+    attachments: attachments || [],
+  }).then(r => r.data);
+  
 export const updateMyProfile = (name) =>
   api.patch('/api/users/me', { name }).then(r => r.data);
 

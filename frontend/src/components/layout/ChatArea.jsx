@@ -23,8 +23,7 @@ function AttachmentPreview({ attachments }) {
       {attachments.map((a, i) => {
         const isImage = a.type?.startsWith('image/');
         return isImage ? (
-          <img key={i} src={a.url} alt={a.name}
-            style={{ maxWidth: 200, maxHeight: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }}
+          <img key={i} src={a.url} alt={a.name} style={{ maxWidth: 200, maxHeight: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }}
             onClick={() => window.open(a.url, '_blank')} />
         ) : (
           <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{
@@ -44,22 +43,36 @@ function AttachmentPreview({ attachments }) {
   );
 }
 
+// action buttons that appear on hover (desktop) or long press (mobile)
+const ActionBtn = ({ title, onClick, children, danger = false }) => (
+  <button title={title} onClick={onClick} style={{
+    background: 'none', border: 'none', cursor: 'pointer',
+    padding: '5px 8px', borderRadius: 5, fontSize: 14,
+    transition: 'background 0.1s',
+    color: danger ? '#ef4444' : 'var(--ws-text)',
+  }}
+    onMouseEnter={e => e.currentTarget.style.background = danger ? 'rgba(239,68,68,0.08)' : 'var(--ws-hover)'}
+    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+  >
+    {children}
+  </button>
+);
+
 function MessageBubble({
   msg, currentUserId, onEdit, onDelete, onReact, onRemoveReact,
   isEditing, editContent, onEditChange, onEditSave, onEditCancel,
   isDeleting, onDeleteConfirm, onDeleteCancel, onReply,
-  isMobile,
+  isMobile = false,
 }) {
-  const [hovered, setHovered]       = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
-  // on mobile we use long press instead of hover for the action bar
+  const [hovered,          setHovered]          = useState(false);
+  const [showPicker,       setShowPicker]        = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false);
   const longPressTimer = useRef(null);
 
   const isOwn     = msg.senderId === currentUserId;
   const reactions = groupReactions(msg.reactions);
 
-  // long press handler for mobile — 500ms hold shows the action buttons
+  // long press = 500ms hold on mobile, same as WhatsApp
   const handleTouchStart = () => {
     if (!isMobile) return;
     longPressTimer.current = setTimeout(() => setShowMobileActions(true), 500);
@@ -68,8 +81,55 @@ function MessageBubble({
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
   };
 
-  // show actions: hover on desktop, long press on mobile
-  const showActions = isMobile ? showMobileActions : (hovered && !isEditing && !isDeleting);
+  // which set of actions to show
+  const showDesktopActions = !isMobile && hovered && !isEditing && !isDeleting;
+  const showMobileBar = isMobile && showMobileActions && !isEditing && !isDeleting;
+
+  // reusable action buttons list
+  const renderActionButtons = () => (
+    <>
+      {/* react button */}
+      <div style={{ position: 'relative' }}>
+        <ActionBtn title="React" onClick={() => setShowPicker(prev => !prev)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+        </ActionBtn>
+        {showPicker && (
+          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, zIndex: 200 }}>
+            <EmojiPicker
+              onSelect={(emoji) => { onReact(msg.id, emoji); setShowPicker(false); setShowMobileActions(false); }}
+              onClose={() => setShowPicker(false)}
+            />
+          </div>
+        )}
+      </div>
+      {/* reply button — everyone can reply */}
+      <ActionBtn title="Reply" onClick={() => { onReply(msg); setShowMobileActions(false); }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+        </svg>
+      </ActionBtn>
+      {/* edit and delete only for own messages */}
+      {isOwn && (
+        <>
+          <ActionBtn title="Edit" onClick={() => { onEdit(msg.id, msg.text); setShowMobileActions(false); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </ActionBtn>
+          <ActionBtn title="Delete" onClick={() => { onDelete(msg.id); setShowMobileActions(false); }} danger>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </ActionBtn>
+        </>
+      )}
+    </>
+  );
 
   return (
     <div
@@ -86,7 +146,7 @@ function MessageBubble({
         position: 'relative',
       }}
     >
-      {/* only show other person's avatar, not our own */}
+      {/* avatar for other people's messages */}
       {!isOwn && (
         <div style={{ flexShrink: 0, marginBottom: 4 }}>
           {msg.avatar_url
@@ -97,14 +157,14 @@ function MessageBubble({
       )}
 
       <div style={{ maxWidth: isMobile ? '82%' : 'min(72%, 600px)', position: 'relative' }}>
-        {/* sender name + time */}
+        {/* name + time */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3, justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
           {!isOwn && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ws-text)' }}>{msg.senderName}</span>}
           <span style={{ fontSize: 10, color: 'var(--ws-text-muted)' }}>{msg.time}</span>
           {msg.is_edited && <span style={{ fontSize: 10, color: 'var(--ws-text-muted)', fontStyle: 'italic' }}>(edited)</span>}
         </div>
 
-        {/* reply preview if this message is replying to another */}
+        {/* reply preview */}
         {msg.parentContent && (
           <div style={{
             borderLeft: '3px solid #0D9488', padding: '4px 8px', marginBottom: 4,
@@ -117,7 +177,7 @@ function MessageBubble({
           </div>
         )}
 
-        {/* the actual bubble */}
+        {/* message bubble */}
         {isEditing ? (
           <div>
             <textarea value={editContent} onChange={e => onEditChange(e.target.value)} autoFocus
@@ -154,7 +214,7 @@ function MessageBubble({
           </div>
         )}
 
-        {/* reaction pills */}
+        {/* reactions */}
         {reactions.length > 0 && !isEditing && !isDeleting && (
           <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
             {reactions.map(r => {
@@ -177,75 +237,49 @@ function MessageBubble({
           </div>
         )}
 
-        {/* action bar — hover on desktop, long press on mobile */}
-        {showActions && (
+        {/* reply count */}
+        {msg.replyCount > 0 && !isEditing && !isDeleting && (
+          <button style={{ marginTop: 4, fontSize: 11, color: '#1a73e8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'block', textAlign: isOwn ? 'right' : 'left' }}>
+            {msg.replyCount} {msg.replyCount === 1 ? 'reply' : 'replies'}
+          </button>
+        )}
+
+        {/* MOBILE: action buttons appear INLINE below the bubble after long press
+            This avoids all clipping — no absolute positioning needed */}
+        {showMobileBar && (
           <div style={{
-            position: 'absolute',
-            // on mobile put it below the bubble so it doesn't get cut off at top
-            ...(isMobile ? { top: '100%', marginTop: 4 } : { top: 4 }),
-            [isOwn ? 'left' : 'right']: 0,
-            display: 'flex', gap: 2,
+            display: 'flex', gap: 2, marginTop: 6,
+            justifyContent: isOwn ? 'flex-end' : 'flex-start',
             background: 'var(--ws-bg)',
-            border: '1px solid var(--ws-border)', borderRadius: 8,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.12)', padding: 2, zIndex: 10,
+            border: '0.5px solid var(--ws-border)',
+            borderRadius: 10, padding: 3,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
           }}>
-            <div style={{ position: 'relative' }}>
-              <ActionBtn title="React" onClick={() => setShowPicker(prev => !prev)}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-                  <line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
-                </svg>
-              </ActionBtn>
-              {showPicker && (
-                <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, zIndex: 100 }}>
-                  <EmojiPicker
-                    onSelect={(emoji) => { onReact(msg.id, emoji); setShowPicker(false); setShowMobileActions(false); }}
-                    onClose={() => setShowPicker(false)}
-                  />
-                </div>
-              )}
-            </div>
-
-            <ActionBtn title="Reply" onClick={() => { onReply(msg); setShowMobileActions(false); }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
-              </svg>
-            </ActionBtn>
-
-            {isOwn && (
-              <>
-                <ActionBtn title="Edit" onClick={() => { onEdit(msg.id, msg.text); setShowMobileActions(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </ActionBtn>
-                <ActionBtn title="Delete" onClick={() => { onDelete(msg.id); setShowMobileActions(false); }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                  </svg>
-                </ActionBtn>
-              </>
-            )}
+            {renderActionButtons()}
           </div>
         )}
       </div>
-    </div>
-  );
-}
 
-function ActionBtn({ title, onClick, children }) {
-  return (
-    <button title={title} onClick={onClick} style={{
-      background: 'none', border: 'none', cursor: 'pointer', padding: '5px 8px',
-      borderRadius: 5, transition: 'background 0.1s', color: 'var(--ws-text)',
-    }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'none'}
-    >
-      {children}
-    </button>
+      {/* DESKTOP: action bar floats on hover, positioned relative to outer row
+          Moved OUTSIDE inner bubble div so it's not clipped by bubble's maxWidth */}
+      {showDesktopActions && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          [isOwn ? 'left' : 'right']: '100%',
+          marginLeft: isOwn ? 0 : 8,
+          marginRight: isOwn ? 8 : 0,
+          display: 'flex', gap: 2,
+          background: 'var(--ws-bg)',  // was #fff — now respects dark mode
+          border: '1px solid var(--ws-border)',
+          borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          padding: 2, zIndex: 50,
+          whiteSpace: 'nowrap',
+        }}>
+          {renderActionButtons()}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -305,20 +339,12 @@ function SearchResultsPanel({ results, onClose, loading }) {
       background: 'var(--ws-bg)', borderTop: '0.5px solid var(--ws-border)', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '0.5px solid var(--ws-border)' }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)' }}>
-          {loading ? 'Searching...' : `${results.length} result${results.length !== 1 ? 's' : ''}`}
-        </span>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)' }}>{loading ? 'Searching...' : `${results.length} result${results.length !== 1 ? 's' : ''}`}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', fontSize: 16 }}>✕</button>
       </div>
-      {!loading && results.length === 0 && (
-        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ws-text-muted)', fontSize: 14 }}>No messages found</div>
-      )}
+      {!loading && results.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ws-text-muted)', fontSize: 14 }}>No messages found</div>}
       {results.map(r => (
-        <button key={r.id} style={{
-          width: '100%', display: 'flex', gap: 10, padding: '12px 20px',
-          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-          borderBottom: '0.5px solid var(--ws-border)',
-        }}
+        <button key={r.id} style={{ width: '100%', display: 'flex', gap: 10, padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '0.5px solid var(--ws-border)' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
@@ -342,9 +368,7 @@ export default function ChatArea({
   spaceMembers, currentUserId, currentUser, allUsers = [],
   onEditMessage, onDeleteMessage, onAddReaction, onRemoveReaction,
   typingUsers, messagesLoading, hasMore, onLoadMore, onTypingChange,
-  spaceId,
-  isMobile = false,
-  className = '',
+  spaceId, isMobile = false, className = '',
 }) {
   const [input, setInput]               = useState('');
   const [showSearch, setShowSearch]     = useState(false);
@@ -383,7 +407,6 @@ export default function ChatArea({
     return () => { if (typingTimerRef.current) clearTimeout(typingTimerRef.current); };
   }, []);
 
-  // debounced search
   useEffect(() => {
     if (!showSearch || !searchQuery.trim()) { setSearchResults([]); return; }
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -400,22 +423,13 @@ export default function ChatArea({
 
   const handleInputChange = (val) => {
     setInput(val);
-    // detect @ mentions
     const lastAt = val.lastIndexOf('@');
     if (lastAt !== -1) {
       const afterAt = val.slice(lastAt + 1);
       if (!afterAt.includes(' ') && afterAt.length <= 20) {
-        setMentionSearch(afterAt);
-        setMentionStartPos(lastAt);
-        setShowMentionDropdown(true);
-      } else {
-        setShowMentionDropdown(false);
-      }
-    } else {
-      setShowMentionDropdown(false);
-      setMentionStartPos(-1);
-    }
-    // typing indicator debounce
+        setMentionSearch(afterAt); setMentionStartPos(lastAt); setShowMentionDropdown(true);
+      } else { setShowMentionDropdown(false); }
+    } else { setShowMentionDropdown(false); setMentionStartPos(-1); }
     onTypingChange?.(true);
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => onTypingChange?.(false), 2000);
@@ -425,8 +439,7 @@ export default function ChatArea({
     const before = input.slice(0, mentionStartPos);
     const after  = input.slice(mentionStartPos + 1 + mentionSearch.length);
     setInput(`${before}@${user.name} ${after}`);
-    setShowMentionDropdown(false);
-    setMentionStartPos(-1);
+    setShowMentionDropdown(false); setMentionStartPos(-1);
     inputRef.current?.focus();
   };
 
@@ -447,9 +460,9 @@ export default function ChatArea({
     if (!input.trim() && !pendingFiles.length) return;
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     onTypingChange?.(false);
+    // pass parentMessageId and attachments to App.jsx which now accepts them
     onSend(input.trim(), replyingTo?.id || null, pendingFiles);
-    setInput(''); setPendingFiles([]); setReplyingTo(null);
-    setShowMentionDropdown(false);
+    setInput(''); setPendingFiles([]); setReplyingTo(null); setShowMentionDropdown(false);
     inputRef.current?.focus();
   };
 
@@ -459,7 +472,7 @@ export default function ChatArea({
       await onEditMessage(editingId, editContent.trim());
       setEditingId(null); setEditContent('');
     } catch {
-      // keep textarea open so user sees the edit failed
+      // keep textarea open so user can see the edit failed
     }
   };
 
@@ -476,9 +489,8 @@ export default function ChatArea({
     setLoadingMore(false);
   };
 
-  // empty state when no conversation is open
+  // on mobile we never render empty state since list screen handles navigation
   if (!title || activeView === 'home' || activeView === 'mentions') {
-    // on mobile we never show this empty state because the list screen is shown instead
     if (isMobile) return null;
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--ws-bg)' }}>
@@ -500,7 +512,7 @@ export default function ChatArea({
     <div className={className} style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--ws-bg)', height: '100%', overflow: 'hidden' }}>
 
-        {/* chat header — on mobile we skip showing close/expand buttons */}
+        {/* header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '0 12px' : '0 16px', height: 57, borderBottom: '0.5px solid var(--ws-border)', flexShrink: 0, background: 'var(--ws-bg)' }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -508,22 +520,14 @@ export default function ChatArea({
               <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--ws-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h2>
               {memberCount && !isMobile && <span style={{ fontSize: 11, color: 'var(--ws-text-muted)', marginLeft: 2, flexShrink: 0 }}>· {memberCount} members</span>}
             </div>
-            {description && !isMobile && (
-              <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0, marginTop: 1, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {description}
-              </p>
-            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-            {/* search button */}
             <button onClick={() => { setShowSearch(p => !p); setSearchQuery(''); setSearchResults([]); }} style={iconBtn(showSearch)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
               {!isMobile && 'Search'}
             </button>
-
-            {/* members button — show on both mobile and desktop */}
             {memberCount && (
               <button onClick={() => setShowMembers(p => !p)} style={iconBtn(showMembers)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -533,10 +537,8 @@ export default function ChatArea({
                 {!isMobile && 'Members'}
               </button>
             )}
-
-            {/* expand/restore button — hidden on mobile */}
             {!isMobile && (
-              <button onClick={onToggleMaximize} style={iconBtn(false)} title={isMaximized ? 'Restore' : 'Expand'}>
+              <button onClick={onToggleMaximize} style={iconBtn(false)}>
                 {isMaximized ? (
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
@@ -550,8 +552,6 @@ export default function ChatArea({
                 )}
               </button>
             )}
-
-            {/* close button — hidden on mobile (back is in top navbar) */}
             {!isMobile && (
               <button onClick={onClose} style={{ ...iconBtn(false), color: 'var(--ws-text-muted)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -562,24 +562,17 @@ export default function ChatArea({
           </div>
         </div>
 
-        {/* inline search input */}
         {showSearch && (
           <div style={{ padding: '8px 16px', borderBottom: '0.5px solid var(--ws-border)', background: 'var(--ws-surface)' }}>
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search messages..."
-              autoFocus
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search messages..." autoFocus
               style={{ width: '100%', padding: '7px 12px', border: '0.5px solid var(--ws-border)', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: 'var(--ws-bg)', color: 'var(--ws-text)' }}
             />
           </div>
         )}
 
-        {/* search results overlay */}
         {showSearch && (searchQuery.trim() || searchLoading) && (
-          <SearchResultsPanel
-            results={searchResults}
-            loading={searchLoading}
+          <SearchResultsPanel results={searchResults} loading={searchLoading}
             onClose={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]); }}
           />
         )}
@@ -623,21 +616,17 @@ export default function ChatArea({
           )}
         </div>
 
-        {/* typing indicator */}
         {typingUsers?.length > 0 && (
           <div style={{ padding: '2px 16px 4px', fontSize: 11, color: 'var(--ws-text-muted)', fontStyle: 'italic' }}>
             {typingUsers.length === 1 ? `${typingUsers[0]} is typing...` : `${typingUsers.join(', ')} are typing...`}
           </div>
         )}
 
-        {/* pending file previews above input */}
         {pendingFiles.length > 0 && (
           <div style={{ padding: '6px 16px', borderTop: '0.5px solid var(--ws-border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {pendingFiles.map((f, i) => (
               <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--ws-surface-2)', borderRadius: 8, padding: '4px 8px', fontSize: 12, color: 'var(--ws-text)' }}>
-                {f.type?.startsWith('image/')
-                  ? <img src={f.url} alt={f.name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover' }} />
-                  : '📎'}
+                {f.type?.startsWith('image/') ? <img src={f.url} alt={f.name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover' }} /> : '📎'}
                 <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                 <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', fontSize: 14, lineHeight: 1, padding: '0 2px' }}>✕</button>
@@ -646,7 +635,6 @@ export default function ChatArea({
           </div>
         )}
 
-        {/* reply bar */}
         {replyingTo && (
           <div style={{ padding: '6px 16px', borderTop: '0.5px solid var(--ws-border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--ws-surface)' }}>
             <div style={{ flex: 1, borderLeft: '3px solid #0D9488', paddingLeft: 8 }}>
@@ -657,14 +645,12 @@ export default function ChatArea({
           </div>
         )}
 
-        {/* message input box */}
-        <div className="ws-chat-input-wrap" style={{ padding: isMobile ? '8px 12px 12px' : '8px 16px 14px', flexShrink: 0, position: 'relative' }}>
+        {/* input area */}
+        <div style={{ padding: isMobile ? '8px 12px 12px' : '8px 16px 14px', flexShrink: 0, position: 'relative' }}>
           {showMentionDropdown && (
             <MentionDropdown users={allUsers} search={mentionSearch} onSelect={handleMentionSelect} />
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--ws-input-bg)', borderRadius: isMobile ? 24 : 12, padding: '8px 12px', border: '0.5px solid var(--ws-border)' }}>
-
-            {/* file attach */}
             <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} title="Attach file"
               style={{ background: 'none', border: 'none', cursor: uploadingFile ? 'not-allowed' : 'pointer', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center', padding: '2px', flexShrink: 0 }}>
               {uploadingFile ? (
@@ -679,10 +665,7 @@ export default function ChatArea({
             </button>
             <input ref={fileInputRef} type="file" onChange={handleFileSelect} style={{ display: 'none' }} accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv" />
 
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => handleInputChange(e.target.value)}
+            <input ref={inputRef} value={input} onChange={e => handleInputChange(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                 if (e.key === 'Escape') { setShowMentionDropdown(false); setReplyingTo(null); }
@@ -691,7 +674,6 @@ export default function ChatArea({
               style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: isMobile ? 15 : 14, color: 'var(--ws-text)' }}
             />
 
-            {/* send button */}
             <button onClick={handleSend} disabled={!input.trim() && !pendingFiles.length}
               style={{
                 width: 32, height: 32, borderRadius: 8, border: 'none',
@@ -706,9 +688,14 @@ export default function ChatArea({
         </div>
       </div>
 
-      {/* members panel — on mobile takes full width */}
+      {/* members panel — full screen overlay on mobile */}
       {showMembers && isSpace && (
-        <div style={{ width: isMobile ? '100%' : 240, borderLeft: isMobile ? 'none' : '0.5px solid var(--ws-border)', background: 'var(--ws-bg)', display: 'flex', flexDirection: 'column', flexShrink: 0, ...(isMobile ? { position: 'absolute', inset: 0, zIndex: 20 } : {}) }}>
+        <div style={{
+          width: isMobile ? '100%' : 240,
+          borderLeft: isMobile ? 'none' : '0.5px solid var(--ws-border)',
+          background: 'var(--ws-bg)', display: 'flex', flexDirection: 'column', flexShrink: 0,
+          ...(isMobile ? { position: 'absolute', inset: 0, zIndex: 20 } : {}),
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', height: 57, borderBottom: '0.5px solid var(--ws-border)' }}>
             <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--ws-text)', margin: 0 }}>Members ({spaceMembers?.length || 0})</h3>
             <button onClick={() => setShowMembers(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', fontSize: 16 }}>✕</button>
