@@ -54,27 +54,27 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     color: '#0D9488', avatar_url: user.avatar_url,
   };
 
-  const [spaces, setSpaces]               = useState([]);
-  const [allUsers, setAllUsers]           = useState([]);
+  const [spaces, setSpaces] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [dmConversations, setDmConversations] = useState([]);
-  const [activeSpace, setActiveSpace]     = useState(null);
-  const [activeDM, setActiveDM]           = useState(null);
-  const [activeView, setActiveView]       = useState('home');
-  const [messages, setMessages]           = useState([]);
+  const [activeSpace, setActiveSpace] = useState(null);
+  const [activeDM, setActiveDM] = useState(null);
+  const [activeView, setActiveView] = useState('home');
+  const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [hasMore, setHasMore]             = useState(false);
-  const [spaceMembers, setSpaceMembers]   = useState([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [spaceMembers, setSpaceMembers] = useState([]);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
-  const [showChatSettings, setShowChatSettings]       = useState(false);
+  const [showChatSettings, setShowChatSettings] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMaximized, setIsMaximized]     = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [navSearchQuery, setNavSearchQuery] = useState('');
-  const [typingUsers, setTypingUsers]     = useState([]);
+  const [typingUsers, setTypingUsers] = useState([]);
   const [activeDMConversationId, setActiveDMConversationId] = useState(null);
 
   // mobile-specific state — which bottom nav tab is active and which screen shows
   const [activeMobileTab, setActiveMobileTab] = useState('home');
-  const [mobileScreen, setMobileScreen]       = useState('list'); // 'list' or 'chat'
+  const [mobileScreen, setMobileScreen] = useState('list'); // 'list' or 'chat'
 
   // listen for calendar back button event fired from CalendarView
   useEffect(() => {
@@ -90,13 +90,13 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
 
   useEffect(() => {
     getSpaces().then(setSpaces).catch(() => showToast('Failed to load spaces', 'error'));
-    getAllUsers().then(setAllUsers).catch(() => {});
-    getDMConversations().then(setDmConversations).catch(() => {});
+    getAllUsers().then(setAllUsers).catch(() => { });
+    getDMConversations().then(setDmConversations).catch(() => { });
   }, []);
 
   useEffect(() => {
     if (!connected) return;
-    return onDMPreviewUpdated(() => getDMConversations().then(setDmConversations).catch(() => {}));
+    return onDMPreviewUpdated(() => getDMConversations().then(setDmConversations).catch(() => { }));
   }, [connected]);
 
   useEffect(() => {
@@ -200,7 +200,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
   });
 
   const formattedMessages = messages
-    .filter(m => m && (m.content || m.text) && (m.sender_name || m.senderName))
+    .filter(m => m && ((m.content || m.text) || m.attachments?.length) && (m.sender_name || m.senderName))
     .map(m => m.senderId ? m : formatMsg(m));
 
   const formattedSpaces = spaces.map(s => ({
@@ -328,7 +328,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     else if (activeView === 'dm' && activeDMConversationId) emitTyping('dm', activeDMConversationId, user.name, isTyping);
   };
 
-  const chatTitle   = activeView === 'space' && activeSpace ? activeSpace.name : activeDM?.name || '';
+  const chatTitle = activeView === 'space' && activeSpace ? activeSpace.name : activeDM?.name || '';
   const memberCount = activeView === 'space' && activeSpace ? activeSpace.memberCount : null;
   const showMobileChatScreen = isMobile && mobileScreen === 'chat';
   const showMobileListScreen = isMobile && mobileScreen === 'list';
@@ -368,7 +368,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
             activeView={activeView}
             onHomeClick={handleBackToHome}
             onMentionsClick={() => { setActiveSpace(null); setActiveDM(null); setActiveView('mentions'); setIsMaximized(false); }}
-            onCreateSpace={() => {}}
+            onCreateSpace={() => { }}
             allSpaces={formattedSpaces}
             currentUser={currentUser}
             dmUsers={dmUsers}
@@ -450,7 +450,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
       )}
 
       {showProfileSettings && <ProfileSettingsModal onClose={() => setShowProfileSettings(false)} />}
-      {showChatSettings    && <ChatSettingsModal    onClose={() => setShowChatSettings(false)} />}
+      {showChatSettings && <ChatSettingsModal onClose={() => setShowChatSettings(false)} />}
     </div>
   );
 }
@@ -478,10 +478,10 @@ function AppRouter() {
   }
 
   if (user) return <WorkspaceRoot user={user} onSignOut={handleSignOut} />;
-  if (page === 'login')    return <LoginPage    onNavigate={navigate} />;
-  if (page === 'privacy')  return <PrivacyPolicyPage onNavigate={navigate} />;
-  if (page === 'terms')    return <TermsPage    onNavigate={navigate} />;
-  if (page === 'cookie')   return <CookiePolicyPage onNavigate={navigate} />;
+  if (page === 'login') return <LoginPage onNavigate={navigate} />;
+  if (page === 'privacy') return <PrivacyPolicyPage onNavigate={navigate} />;
+  if (page === 'terms') return <TermsPage onNavigate={navigate} />;
+  if (page === 'cookie') return <CookiePolicyPage onNavigate={navigate} />;
   if (page === 'security') return <SecurityPage onNavigate={navigate} />;
   return <LandingPage onNavigate={navigate} />;
 }

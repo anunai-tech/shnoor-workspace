@@ -114,6 +114,8 @@ function AppsDropdown({ onClose }) {
 }
 
 function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOut, isAdmin, onOpenAdmin }) {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
   const ref = useRef(null);
   useClickOutside(ref, onClose);
   return (
@@ -137,7 +139,7 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
         >
           Profile Settings
         </button>
-        
+
         <button onClick={() => { toggleTheme(); onClose(); }} style={{
           width: '100%', display: 'block', padding: '9px 16px', textAlign: 'left',
           background: 'none', border: 'none', cursor: 'pointer',
@@ -146,7 +148,7 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
-          {isDark ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
+          {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
         </button>
 
         {/* admin panel accessible from profile menu on mobile too */}
@@ -202,18 +204,20 @@ export default function TopNavbar({
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: isMobile ? 'auto' : 180 }}>
         {isMobile && showMobileBackBtn ? (
           <button onClick={onMobileBack} style={{ ...navBtn, width: 40, height: 40 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
-        ) : (
+        ) : !isMobile ? (
+          // only show hamburger on desktop — mobile uses BottomNav for navigation
           <button style={navBtn} onClick={onToggleSidebar} title="Toggle sidebar"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
             <HamburgerIcon />
           </button>
-        )}
+        ) : null}
 
         {isMobile && showMobileBackBtn ? (
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--ws-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>

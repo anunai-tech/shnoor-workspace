@@ -64,40 +64,35 @@ function MessageBubble({
   isDeleting, onDeleteConfirm, onDeleteCancel, onReply,
   isMobile = false,
 }) {
-  const [hovered,          setHovered]          = useState(false);
-  const [showPicker,       setShowPicker]        = useState(false);
-  const [showMobileActions, setShowMobileActions] = useState(false);
+  const [hovered,           setHovered]           = useState(false);
+  const [showPicker,        setShowPicker]         = useState(false);
+  const [showMobileActions, setShowMobileActions]  = useState(false);
   const longPressTimer = useRef(null);
 
   const isOwn     = msg.senderId === currentUserId;
   const reactions = groupReactions(msg.reactions);
 
-  // long press = 500ms hold on mobile, same as WhatsApp
+  // 500ms hold on mobile triggers the action bar
   const handleTouchStart = () => {
-    if (!isMobile) return;
     longPressTimer.current = setTimeout(() => setShowMobileActions(true), 500);
   };
   const handleTouchEnd = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
   };
 
-  // which set of actions to show
-  const showDesktopActions = !isMobile && hovered && !isEditing && !isDeleting;
-  const showMobileBar = isMobile && showMobileActions && !isEditing && !isDeleting;
-
-  // reusable action buttons list
-  const renderActionButtons = () => (
+  // shared set of action buttons so we don't duplicate JSX
+  const renderButtons = (closeAfterAction) => (
     <>
-      {/* react button */}
       <div style={{ position: 'relative' }}>
-        <ActionBtn title="React" onClick={() => setShowPicker(prev => !prev)}>
+        <ActionBtn title="React" onClick={() => setShowPicker(p => !p)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
             <line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
           </svg>
         </ActionBtn>
         {showPicker && (
-          <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, zIndex: 200 }}>
+          // zIndex 9999 ensures picker floats above everything including the mobile action bar
+          <div style={{ position: 'fixed', zIndex: 9999, bottom: isMobile ? 140 : 'auto', top: isMobile ? 'auto' : 'auto' }}>
             <EmojiPicker
               onSelect={(emoji) => { onReact(msg.id, emoji); setShowPicker(false); setShowMobileActions(false); }}
               onClose={() => setShowPicker(false)}
@@ -105,23 +100,21 @@ function MessageBubble({
           </div>
         )}
       </div>
-      {/* reply button — everyone can reply */}
-      <ActionBtn title="Reply" onClick={() => { onReply(msg); setShowMobileActions(false); }}>
+      <ActionBtn title="Reply" onClick={() => { onReply(msg); closeAfterAction?.(); }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
         </svg>
       </ActionBtn>
-      {/* edit and delete only for own messages */}
       {isOwn && (
         <>
-          <ActionBtn title="Edit" onClick={() => { onEdit(msg.id, msg.text); setShowMobileActions(false); }}>
+          <ActionBtn title="Edit" onClick={() => { onEdit(msg.id, msg.text); closeAfterAction?.(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
           </ActionBtn>
-          <ActionBtn title="Delete" onClick={() => { onDelete(msg.id); setShowMobileActions(false); }} danger>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <ActionBtn title="Delete" onClick={() => { onDelete(msg.id); closeAfterAction?.(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
             </svg>
@@ -146,7 +139,7 @@ function MessageBubble({
         position: 'relative',
       }}
     >
-      {/* avatar for other people's messages */}
+      {/* avatar — only for others' messages */}
       {!isOwn && (
         <div style={{ flexShrink: 0, marginBottom: 4 }}>
           {msg.avatar_url
@@ -177,7 +170,7 @@ function MessageBubble({
           </div>
         )}
 
-        {/* message bubble */}
+        {/* bubble */}
         {isEditing ? (
           <div>
             <textarea value={editContent} onChange={e => onEditChange(e.target.value)} autoFocus
@@ -237,48 +230,47 @@ function MessageBubble({
           </div>
         )}
 
+        {/* DESKTOP: action bar floats ABOVE the bubble using bottom: 100% so it's never clipped by scroll container */}
+        {!isMobile && hovered && !isEditing && !isDeleting && (
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            marginBottom: 4,
+            [isOwn ? 'right' : 'left']: 0,
+            display: 'flex', gap: 2,
+            background: 'var(--ws-bg)',
+            border: '0.5px solid var(--ws-border)',
+            borderRadius: 8,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            padding: 2,
+            zIndex: 100,
+            whiteSpace: 'nowrap',
+          }}>
+            {renderButtons(null)}
+          </div>
+        )}
+
+        {/* MOBILE: action bar appears inline BELOW the bubble after long press — no absolute positioning = no clipping */}
+        {isMobile && showMobileActions && !isEditing && !isDeleting && (
+          <div style={{
+            display: 'flex', gap: 2, marginTop: 6,
+            justifyContent: isOwn ? 'flex-end' : 'flex-start',
+            background: 'var(--ws-bg)',
+            border: '0.5px solid var(--ws-border)',
+            borderRadius: 10, padding: 4,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          }}>
+            {renderButtons(() => setShowMobileActions(false))}
+          </div>
+        )}
+
         {/* reply count */}
         {msg.replyCount > 0 && !isEditing && !isDeleting && (
           <button style={{ marginTop: 4, fontSize: 11, color: '#1a73e8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'block', textAlign: isOwn ? 'right' : 'left' }}>
             {msg.replyCount} {msg.replyCount === 1 ? 'reply' : 'replies'}
           </button>
         )}
-
-        {/* MOBILE: action buttons appear INLINE below the bubble after long press
-            This avoids all clipping — no absolute positioning needed */}
-        {showMobileBar && (
-          <div style={{
-            display: 'flex', gap: 2, marginTop: 6,
-            justifyContent: isOwn ? 'flex-end' : 'flex-start',
-            background: 'var(--ws-bg)',
-            border: '0.5px solid var(--ws-border)',
-            borderRadius: 10, padding: 3,
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-          }}>
-            {renderActionButtons()}
-          </div>
-        )}
       </div>
-
-      {/* DESKTOP: action bar floats on hover, positioned relative to outer row
-          Moved OUTSIDE inner bubble div so it's not clipped by bubble's maxWidth */}
-      {showDesktopActions && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          [isOwn ? 'left' : 'right']: '100%',
-          marginLeft: isOwn ? 0 : 8,
-          marginRight: isOwn ? 8 : 0,
-          display: 'flex', gap: 2,
-          background: 'var(--ws-bg)',  // was #fff — now respects dark mode
-          border: '1px solid var(--ws-border)',
-          borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          padding: 2, zIndex: 50,
-          whiteSpace: 'nowrap',
-        }}>
-          {renderActionButtons()}
-        </div>
-      )}
     </div>
   );
 }
