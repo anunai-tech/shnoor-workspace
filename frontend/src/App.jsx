@@ -21,8 +21,6 @@ import ConversationList from './components/layout/ConversationList.jsx';
 import ChatArea from './components/layout/ChatArea.jsx';
 import RightIconRail from './components/layout/RightIconRail.jsx';
 import CalendarView from './components/calendar/CalendarView.jsx';
-
-import { getSpaces, getSpaceMessages, sendSpaceMessage, editSpaceMessage, deleteSpaceMessage } from './api/spaces.js';
 import { getAllUsers, getDMMessages, sendDMMessage } from './api/users.js';
 import { addReaction, removeReaction, getDMConversations } from './api/messages.js';
 
