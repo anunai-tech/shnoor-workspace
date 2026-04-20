@@ -22,51 +22,49 @@ export const indianHolidays = {
   "12-25": "Christmas Day"
 };
 
+// check screen width — same hook pattern used in App.jsx
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
+
 export default function CalendarView({ isSidebarOpen, navSearchQuery }) {
-  const [viewMode, setViewMode] = useState("Month");
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode]       = useState("Month");
+  const [tasks, setTasks]             = useState([]);
+  const [loading, setLoading]         = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Fetch tasks from backend on mount
   useEffect(() => {
     setLoading(true);
     apiGetTasks()
       .then(data => {
-        // Normalise field names: backend returns `date` and `time` already via alias
         setTasks(data.map(t => ({
-          id: t.id,
-          title: t.title,
-          description: t.description,
-          date: t.date,       // YYYY-MM-DD
-          time: t.time,       // HH:MM or null
-          completed: t.completed,
+          id: t.id, title: t.title, description: t.description,
+          date: t.date, time: t.time, completed: t.completed,
         })));
       })
-      .catch(() => { })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
   const handleAddTask = async (newTask) => {
     try {
       const created = await apiCreateTask({
-        title: newTask.title,
-        description: newTask.description || null,
-        date: newTask.date || null,
-        time: newTask.time || null,
+        title: newTask.title, description: newTask.description || null,
+        date: newTask.date || null, time: newTask.time || null,
       });
       setTasks(prev => [...prev, {
-        id: created.id,
-        title: created.title,
-        description: created.description,
-        date: created.date,
-        time: created.time,
-        completed: created.completed,
+        id: created.id, title: created.title, description: created.description,
+        date: created.date, time: created.time, completed: created.completed,
       }]);
-    } catch {
-      // silently fail; a toast would require context here
-    }
+    } catch {}
   };
 
   const toggleTaskCompletion = async (id) => {
@@ -80,43 +78,46 @@ export default function CalendarView({ isSidebarOpen, navSearchQuery }) {
     try {
       await apiDeleteTask(id);
       setTasks(prev => prev.filter(t => t.id !== id));
-    } catch { }
+    } catch {}
   };
 
-  // Search logic (tasks + holidays)
+  // search
   const query = (navSearchQuery || "").toLowerCase().trim();
   let searchResults = null;
   if (query.length > 0) {
-    const matchingTasks = tasks.filter(t => t.title.toLowerCase().includes(query));
+    const matchingTasks    = tasks.filter(t => t.title.toLowerCase().includes(query));
     const matchingHolidays = Object.entries(indianHolidays).filter(([_, name]) => name.toLowerCase().includes(query));
     searchResults = (
-      <div className="absolute top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 shadow-md max-h-[300px] overflow-y-auto">
-        <div className="p-4">
-          <h3 className="text-[12px] font-semibold text-gray-500 uppercase mb-2">Search Results</h3>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, background: 'var(--ws-bg)', borderBottom: '0.5px solid var(--ws-border)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', maxHeight: 300, overflowY: 'auto' }}>
+        <div style={{ padding: '12px 16px' }}>
+          <h3 style={{ fontSize: 11, fontWeight: 600, color: 'var(--ws-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Search Results</h3>
           {matchingTasks.length === 0 && matchingHolidays.length === 0 && (
-            <p className="text-[14px] text-gray-500">No tasks or holidays found.</p>
+            <p style={{ fontSize: 13, color: 'var(--ws-text-muted)', margin: 0 }}>No tasks or holidays found.</p>
           )}
           {matchingTasks.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-[13px] font-medium text-[#1a73e8] mb-1">Tasks</h4>
+            <div style={{ marginBottom: 10 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#1a73e8', margin: '0 0 4px' }}>Tasks</p>
               {matchingTasks.map(t => (
-                <div key={t.id} className="py-1 px-2 hover:bg-gray-50 text-[14px] flex justify-between cursor-pointer">
+                <div key={t.id} style={{ padding: '4px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ws-text)', cursor: 'pointer', borderRadius: 4 }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
                   <span>{t.title}</span>
-                  <span className="text-gray-500 text-[12px]">{t.date}</span>
+                  <span style={{ color: 'var(--ws-text-muted)', fontSize: 11 }}>{t.date}</span>
                 </div>
               ))}
             </div>
           )}
           {matchingHolidays.length > 0 && (
             <div>
-              <h4 className="text-[13px] font-medium text-[#ea4335] mb-1">Holidays</h4>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#ea4335', margin: '0 0 4px' }}>Holidays</p>
               {matchingHolidays.map(([key, name]) => {
                 const [m, d] = key.split('-');
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
                 return (
-                  <div key={key} className="py-1 px-2 hover:bg-gray-50 text-[14px] flex justify-between cursor-pointer">
+                  <div key={key} style={{ padding: '4px 8px', display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--ws-text)' }}>
                     <span>{name}</span>
-                    <span className="text-gray-500 text-[12px]">{monthNames[parseInt(m) - 1]} {d}</span>
+                    <span style={{ color: 'var(--ws-text-muted)', fontSize: 11 }}>{monthNames[parseInt(m)-1]} {d}</span>
                   </div>
                 );
               })}
@@ -128,31 +129,36 @@ export default function CalendarView({ isSidebarOpen, navSearchQuery }) {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden relative">
-      {/* Back to chat bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderBottom: '1px solid #e5e7eb', background: '#fff', flexShrink: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', position: 'relative' }}>
+      {/* back to chat bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--ws-border)', background: 'var(--ws-bg)', flexShrink: 0 }}>
         <button
           onClick={() => window.dispatchEvent(new CustomEvent('calendar:back'))}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#5f6368', fontWeight: 500, padding: '4px 8px', borderRadius: 6 }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f1f3f4'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--ws-text-muted)', fontWeight: 500, padding: '4px 8px', borderRadius: 6 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
+            <polyline points="15 18 9 12 15 6"/>
           </svg>
           Back to Chat
         </button>
       </div>
-      <div className="flex flex-1 overflow-hidden relative">
+
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
         {searchResults}
 
-        <CalendarSidebar
-          isOpen={isSidebarOpen}
-          onAddTask={() => setIsModalOpen(true)}
-          currentDate={currentDate}
-          setCurrentDate={setCurrentDate}
-          indianHolidays={indianHolidays}
-        />
+        {/* sidebar: hidden on mobile, shown on desktop */}
+        {!isMobile && (
+          <CalendarSidebar
+            isOpen={isSidebarOpen}
+            onAddTask={() => setIsModalOpen(true)}
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
+            indianHolidays={indianHolidays}
+            isMobile={false}
+          />
+        )}
 
         {viewMode === "Tasks" ? (
           <TasksList
@@ -170,6 +176,8 @@ export default function CalendarView({ isSidebarOpen, navSearchQuery }) {
             setCurrentDate={setCurrentDate}
             tasks={tasks}
             indianHolidays={indianHolidays}
+            isMobile={isMobile}
+            onAddTask={() => setIsModalOpen(true)}
           />
         )}
 
@@ -177,9 +185,10 @@ export default function CalendarView({ isSidebarOpen, navSearchQuery }) {
           <AddTaskModal
             onClose={() => setIsModalOpen(false)}
             onSave={handleAddTask}
+            isMobile={isMobile}
           />
         )}
       </div>
-        </div>
-      );
+    </div>
+  );
 }

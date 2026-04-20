@@ -2,20 +2,18 @@ import { useState, useMemo } from "react";
 
 const PlusIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
+    <line x1="12" y1="5" x2="12" y2="19"/>
+    <line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 );
-
 const ChevronLeft = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6" />
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
   </svg>
 );
-
 const ChevronRight = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f6368" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6" />
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6"/>
   </svg>
 );
 
@@ -25,16 +23,13 @@ export default function CalendarSidebar({ isOpen, onAddTask, currentDate, setCur
     const month = currentDate.getMonth();
     const numDays = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
-    
     let days = Array.from({ length: firstDay }, () => null);
-    for (let i = 1; i <= numDays; i++) {
-      days.push(i);
-    }
+    for (let i = 1; i <= numDays; i++) days.push(i);
     return days;
   }, [currentDate]);
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const dayNames = ["S", "M", "T", "W", "T", "F", "S"];
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const dayNames   = ["S","M","T","W","T","F","S"];
 
   const handlePrevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
@@ -45,82 +40,115 @@ export default function CalendarSidebar({ isOpen, onAddTask, currentDate, setCur
   if (!isOpen) return null;
 
   return (
-    <div className="w-[280px] bg-white border-r border-gray-200 h-full flex flex-col pt-4 overflow-y-auto flex-shrink-0">
-      
-      {/* Add Task */}
-      <div className="px-4 mb-6 mt-2">
-        <button 
+    <div style={{
+      width: 280, flexShrink: 0,
+      background: 'var(--ws-bg)',
+      borderRight: '0.5px solid var(--ws-border)',
+      height: '100%', display: 'flex', flexDirection: 'column',
+      paddingTop: 16, overflowY: 'auto',
+    }}>
+
+      {/* add task button */}
+      <div style={{ padding: '0 16px 20px' }}>
+        <button
           onClick={onAddTask}
-          className="flex items-center gap-3 w-full px-4 py-3 bg-[#e8f0fe] text-[#1a73e8] hover:bg-[#d2e3fc] rounded-lg transition-colors text-[14px] font-medium shadow-sm"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            width: '100%', padding: '10px 16px',
+            background: '#e8f0fe', color: '#1a73e8',
+            border: 'none', borderRadius: 8, cursor: 'pointer',
+            fontSize: 14, fontWeight: 500, transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#d2e3fc'}
+          onMouseLeave={e => e.currentTarget.style.background = '#e8f0fe'}
         >
           <PlusIcon />
-          <span>Add task</span>
+          Add task
         </button>
       </div>
 
-      {/* Mini Calendar */}
-      <div className="px-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[14px] font-medium text-[#3c4043] ml-1">
+      {/* mini calendar */}
+      <div style={{ padding: '0 20px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--ws-text)' }}>
             {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
           </span>
-          <div className="flex gap-2">
-            <button onClick={handlePrevMonth} className="p-1 hover:bg-gray-100 rounded-full transition-colors"><ChevronLeft /></button>
-            <button onClick={handleNextMonth} className="p-1 hover:bg-gray-100 rounded-full transition-colors"><ChevronRight /></button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={handlePrevMonth} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <ChevronLeft />
+            </button>
+            <button onClick={handleNextMonth} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}
+            >
+              <ChevronRight />
+            </button>
           </div>
         </div>
-        
-        <div className="grid grid-cols-7 gap-y-1 gap-x-1 text-center">
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px 2px', textAlign: 'center' }}>
           {dayNames.map((day, i) => (
-            <div key={i} className="text-[10px] h-6 flex items-center justify-center font-medium text-[#70757a]">
+            <div key={i} style={{ height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 500, color: 'var(--ws-text-muted)' }}>
               {day}
             </div>
           ))}
           {daysInMonth.map((date, i) => {
             const isToday = isCurrentMonth && date === today.getDate();
             const holidayKey = date ? `${currentDate.getMonth() + 1}-${date}` : null;
-            const holiday = indianHolidays[holidayKey];
-            
+            const holiday    = indianHolidays[holidayKey];
             return (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 title={holiday || ""}
                 onClick={() => date && setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), date))}
-                className={`w-7 h-7 flex flex-col items-center justify-center text-[12px] relative rounded-full hover:bg-gray-100 cursor-pointer ${
-                  isToday ? "bg-[#1a73e8] text-white font-bold hover:bg-[#1557b0]" : "text-[#3c4043]"
-                } ${holiday && !isToday ? "font-bold text-[#ea4335]" : ""}`}
+                style={{
+                  width: 28, height: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, borderRadius: '50%', cursor: date ? 'pointer' : 'default', margin: '0 auto', position: 'relative',
+                  background: isToday ? '#1a73e8' : 'none',
+                  color: isToday ? '#fff' : holiday ? '#ea4335' : 'var(--ws-text)',
+                  fontWeight: isToday ? 700 : holiday ? 600 : 400,
+                }}
+                onMouseEnter={e => { if (date && !isToday) e.currentTarget.style.background = 'var(--ws-hover)'; }}
+                onMouseLeave={e => { if (!isToday) e.currentTarget.style.background = 'none'; }}
               >
-                <span>{date || ""}</span>
-                {holiday && <div className={`w-1 h-1 rounded-full absolute bottom-0.5 ${isToday ? "bg-white" : "bg-[#ea4335]"}`} />}
+                {date || ""}
+                {holiday && <div style={{ width: 4, height: 4, borderRadius: '50%', background: isToday ? '#fff' : '#ea4335', position: 'absolute', bottom: 2 }} />}
               </div>
             );
           })}
         </div>
       </div>
-      
-      {/* Holidays List below calendar */}
-      <div className="px-6">
-        <h4 className="text-[11px] font-semibold text-[#70757a] uppercase mb-2">Upcoming IT Holidays</h4>
-        <div className="flex flex-col gap-2">
+
+      {/* upcoming holidays */}
+      <div style={{ padding: '0 20px' }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--ws-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>
+          Upcoming IT Holidays
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {Object.entries(indianHolidays)
             .filter(([key]) => {
               const [m, d] = key.split('-');
-              return parseInt(m) > currentDate.getMonth() || (parseInt(m) === currentDate.getMonth() + 1 && parseInt(d) >= currentDate.getDate());
+              return parseInt(m) > currentDate.getMonth() ||
+                (parseInt(m) === currentDate.getMonth() + 1 && parseInt(d) >= currentDate.getDate());
             })
             .slice(0, 3)
             .map(([key, name]) => {
               const [m, d] = key.split('-');
               return (
-                <div key={key} className="flex items-center gap-2 text-[12px]">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#34A853]"></div>
-                  <span className="text-[#3c4043] font-medium">{d} {monthNames[parseInt(m)-1]}</span>
-                  <span className="text-[#70757a] ml-auto truncate max-w-[100px]" title={name}>{name}</span>
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#34A853', flexShrink: 0 }} />
+                  <span style={{ color: 'var(--ws-text)', fontWeight: 500 }}>
+                    {d} {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m)-1]}
+                  </span>
+                  <span style={{ color: 'var(--ws-text-muted)', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100 }} title={name}>{name}</span>
                 </div>
               );
             })}
         </div>
       </div>
-
     </div>
   );
 }
