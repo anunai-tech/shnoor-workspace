@@ -233,6 +233,8 @@ export default function TopNavbar({
   onToggleSidebar, navSearchQuery, onNavSearchChange,
   onSignOut, currentUser, onOpenAdmin, isAdmin,
   onGoToContact,
+  onOpenCalendar,   
+  onOpenChat,
 }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
