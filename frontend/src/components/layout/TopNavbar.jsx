@@ -51,9 +51,9 @@ const ChevronDownIcon = () => (
 );
 
 const STATUS_OPTIONS = [
-  { id: "active", label: "Automatic",       description: "Based on your activity", dotColor: "#34A853" },
-  { id: "dnd",    label: "Do not disturb",  description: "Mute notifications",     dotColor: "#EA4335" },
-  { id: "away",   label: "Set as away",     description: null,                     dotColor: "#FBBC04" },
+  { id: "active", label: "Automatic",      description: "Based on your activity", dotColor: "#34A853" },
+  { id: "dnd",    label: "Do not disturb", description: "Mute notifications",     dotColor: "#EA4335" },
+  { id: "away",   label: "Set as away",    description: null,                     dotColor: "#FBBC04" },
 ];
 
 function useClickOutside(ref, callback) {
@@ -62,21 +62,6 @@ function useClickOutside(ref, callback) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [callback]);
-}
-
-function DropdownShell({ children, onClose }) {
-  const ref = useRef(null);
-  useClickOutside(ref, onClose);
-  return (
-    <div ref={ref} style={{
-      position: 'absolute', top: 48, right: 0, zIndex: 50,
-      background: 'var(--ws-bg)', border: '0.5px solid var(--ws-border)',
-      borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-      animation: 'fadeSlideDown 0.15s ease-out',
-    }}>
-      {children}
-    </div>
-  );
 }
 
 function StatusDropdown({ currentStatus, onSelect, onClose }) {
@@ -92,8 +77,7 @@ function StatusDropdown({ currentStatus, onSelect, onClose }) {
       {STATUS_OPTIONS.map(opt => (
         <button key={opt.id} onClick={() => { onSelect(opt.id); onClose(); }} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
-          textAlign: 'left', transition: 'background 0.1s',
+          padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
         }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -111,15 +95,13 @@ function StatusDropdown({ currentStatus, onSelect, onClose }) {
         </button>
       ))}
       <div style={{ padding: '8px 14px', borderTop: '0.5px solid var(--ws-border)' }}>
-        <p style={{ fontSize: 11, color: 'var(--ws-text-muted)' }}>
-          Team-wide status visibility coming soon
-        </p>
+        <p style={{ fontSize: 11, color: 'var(--ws-text-muted)' }}>Team-wide status visibility coming soon</p>
       </div>
     </div>
   );
 }
 
-function HelpDropdown({ onClose, onGoToContact }) {
+function HelpDropdown({ onClose }) {
   const ref = useRef(null);
   useClickOutside(ref, onClose);
   const tips = [
@@ -166,9 +148,7 @@ function AppsDropdown({ onClose }) {
       borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
       animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
     }}>
-      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--ws-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px 6px' }}>
-        Apps
-      </p>
+      <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--ws-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px 6px' }}>Apps</p>
       {apps.map(app => (
         <button key={app.name} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -193,7 +173,7 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
   useClickOutside(ref, onClose);
   const items = [
     { label: 'Profile Settings', onClick: () => { onOpenProfileSettings(); onClose(); } },
-    { label: 'Sign Out',         onClick: () => { onSignOut?.(); onClose(); }, danger: true },
+    { label: 'Sign Out', onClick: () => { onSignOut?.(); onClose(); }, danger: true },
   ];
   return (
     <div ref={ref} style={{
@@ -232,9 +212,12 @@ export default function TopNavbar({
   onOpenChatSettings, onOpenProfileSettings,
   onToggleSidebar, navSearchQuery, onNavSearchChange,
   onSignOut, currentUser, onOpenAdmin, isAdmin,
-  onGoToContact,
-  onOpenCalendar,   
-  onOpenChat,
+  onGoToContact, onOpenCalendar, onOpenChat, activeView,
+  // mobile props - back button stuff
+  isMobile = false,
+  onMobileBack,
+  mobileChatTitle,
+  showMobileBackBtn = false,
 }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
@@ -250,32 +233,64 @@ export default function TopNavbar({
 
   const navBtn = {
     width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer',
-    transition: 'background 0.1s',
+    borderRadius: '50%', background: 'none', border: 'none', cursor: 'pointer', transition: 'background 0.1s',
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', height: 60, padding: '0 16px', borderBottom: `1px solid var(--ws-border)`, background: 'var(--ws-navbar)', flexShrink: 0, position: 'relative', zIndex: 20 }}>
-      {/* Hamburger + logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 180 }}>
-        <button style={navBtn} onClick={onToggleSidebar} title="Toggle sidebar"
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'none'}
-        >
-          <HamburgerIcon />
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/shnoor-logo.png" alt="SHNOOR" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
-          <span className="ws-navbar-title" style={{ fontSize: 18, fontWeight: 500, color: 'var(--ws-text-muted)', letterSpacing: '-0.3px' }}>Chat</span>
-        </div>
+    <div style={{
+      display: 'flex', alignItems: 'center',
+      height: isMobile ? 52 : 60,
+      padding: isMobile ? '0 12px' : '0 16px',
+      borderBottom: `1px solid var(--ws-border)`,
+      background: 'var(--ws-navbar)',
+      flexShrink: 0, position: 'relative', zIndex: 20,
+    }}>
+
+      {/* left side — on mobile chat screen show back arrow + chat name */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: isMobile ? 'auto' : 180 }}>
+        {isMobile && showMobileBackBtn ? (
+          // back arrow when a chat is open on mobile
+          <button onClick={onMobileBack} style={{ ...navBtn, width: 40, height: 40 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+        ) : (
+          <button style={navBtn} onClick={onToggleSidebar} title="Toggle sidebar"
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <HamburgerIcon />
+          </button>
+        )}
+
+        {/* chat title on mobile when inside a conversation, logo otherwise */}
+        {isMobile && showMobileBackBtn ? (
+          <span style={{
+            fontSize: 15, fontWeight: 600, color: 'var(--ws-text)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200,
+          }}>
+            {mobileChatTitle}
+          </span>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/shnoor-logo.png" alt="SHNOOR" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'contain' }} />
+            {/* hide "Chat" text on mobile to save space */}
+            {!isMobile && (
+              <span style={{ fontSize: 18, fontWeight: 500, color: 'var(--ws-text-muted)', letterSpacing: '-0.3px' }}>
+                Chat
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Search */}
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
+      {/* search bar — completely hidden on mobile via CSS class */}
+      <div className="ws-navbar-search" style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          width: '100%', maxWidth: 600, borderRadius: 24,
-          padding: '7px 16px',
+          display: 'flex', alignItems: 'center', gap: 8, width: '100%', maxWidth: 600,
+          borderRadius: 24, padding: '7px 16px',
           background: searchFocused ? 'var(--ws-bg)' : 'var(--ws-surface-2)',
           border: searchFocused ? '1.5px solid #0D9488' : '1px solid var(--ws-border)',
           transition: 'all 0.2s',
@@ -290,15 +305,19 @@ export default function TopNavbar({
             style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: 'var(--ws-text)' }}
           />
           {navSearchQuery && (
-            <button onClick={() => onNavSearchChange?.('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', lineHeight: 1 }}>✕</button>
+            <button onClick={() => onNavSearchChange?.('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', lineHeight: 1 }}>
+              ✕
+            </button>
           )}
         </div>
       </div>
 
-      {/* Right controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        {/* Status pill */}
-        <div className="ws-status-btn" style={{ position: 'relative' }}>
+      {/* right controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 'auto' }}>
+
+        {/* status pill — hidden on mobile via CSS */}
+        <div className="ws-status-pill" style={{ position: 'relative' }}>
           <button onClick={() => setShowStatus(p => !p)} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 20,
             border: '0.5px solid var(--ws-border)', background: 'none', cursor: 'pointer',
@@ -310,26 +329,27 @@ export default function TopNavbar({
           {showStatus && <StatusDropdown currentStatus={currentStatus} onSelect={onStatusChange} onClose={() => setShowStatus(false)} />}
         </div>
 
-        {/* Dark/light toggle — sun in dark mode, moon in light mode */}
-        <button style={navBtn} onClick={toggleTheme} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        {/* theme toggle — hidden on mobile */}
+        <button className="ws-theme-toggle-nav" style={navBtn} onClick={toggleTheme}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
           {isDark ? <SunIcon /> : <MoonIcon />}
         </button>
 
-        {/* Help */}
-        <div style={{ position: 'relative' }}>
+        {/* help — hidden on mobile */}
+        <div className="ws-help-btn" style={{ position: 'relative' }}>
           <button style={navBtn} onClick={() => setShowHelp(p => !p)} title="Help"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
             <QuestionIcon />
           </button>
-          {showHelp && <HelpDropdown onClose={() => setShowHelp(false)} onGoToContact={onGoToContact} />}
+          {showHelp && <HelpDropdown onClose={() => setShowHelp(false)} />}
         </div>
 
-        {/* Chat settings */}
+        {/* settings — visible on both mobile and desktop */}
         <button style={navBtn} onClick={onOpenChatSettings} title="Chat settings"
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -337,9 +357,9 @@ export default function TopNavbar({
           <SettingsIcon />
         </button>
 
-        {/* Admin star */}
+        {/* admin star — hidden on mobile */}
         {isAdmin && (
-          <button style={navBtn} onClick={onOpenAdmin} title="Admin panel"
+          <button className="ws-admin-btn" style={navBtn} onClick={onOpenAdmin} title="Admin panel"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
@@ -349,8 +369,8 @@ export default function TopNavbar({
           </button>
         )}
 
-        {/* Apps */}
-        <div style={{ position: 'relative' }}>
+        {/* apps — hidden on mobile */}
+        <div className="ws-apps-btn" style={{ position: 'relative' }}>
           <button style={navBtn} onClick={() => setShowApps(p => !p)} title="Apps"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -360,8 +380,8 @@ export default function TopNavbar({
           {showApps && <AppsDropdown onClose={() => setShowApps(false)} />}
         </div>
 
-        {/* Profile avatar */}
-        <div style={{ position: 'relative', marginLeft: 6 }}>
+        {/* profile avatar — always visible */}
+        <div style={{ position: 'relative', marginLeft: 4 }}>
           <button onClick={() => setShowProfile(p => !p)} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px',
             borderRadius: 24, background: 'none', border: 'none', cursor: 'pointer',
@@ -369,10 +389,6 @@ export default function TopNavbar({
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            <div style={{ textAlign: 'right', display: 'none' }} className="hidden lg:block">
-              <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--ws-text)', margin: 0 }}>SHNOOR</p>
-              <p style={{ fontSize: 10, color: 'var(--ws-text-muted)', margin: 0 }}>International</p>
-            </div>
             <div style={{ position: 'relative' }}>
               <Avatar initials={currentUser.initials} color={currentUser.color} size={32} avatarUrl={currentUser.avatar_url} />
               <span style={{

@@ -17,9 +17,12 @@ export default function ConversationList({
   activeView, onSelectConversation, selectedId,
   navSearchQuery, mentionedMessages, allSpaces, dmConversations, currentUserId,
   className = '',
+  isMobile = false,
+  activeMobileTab = 'home',
 }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
 
+  // build one flat list of spaces + dms, sorted by latest message
   const items = [
     ...allSpaces.map(s => ({
       id: s.id, type: 'space', name: s.name,
@@ -40,15 +43,27 @@ export default function ConversationList({
     return new Date(b.time) - new Date(a.time);
   });
 
-  let filtered = unreadOnly ? items.filter(i => i.unread > 0) : items;
+  // on mobile filter by which bottom nav tab is active
+  let filtered = items;
+  if (isMobile && activeMobileTab === 'dms')    filtered = items.filter(i => i.type === 'dm');
+  if (isMobile && activeMobileTab === 'spaces') filtered = items.filter(i => i.type === 'space');
+  if (unreadOnly) filtered = filtered.filter(i => i.unread > 0);
+
+  // search filter
   if (navSearchQuery?.trim()) {
     const q = navSearchQuery.toLowerCase();
     filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || i.preview?.toLowerCase().includes(q));
   }
 
+  // on mobile the list is full width, on desktop it's 360px fixed
+  const containerWidth = isMobile ? '100%' : 360;
+  const rowPadding     = isMobile ? '14px 16px' : '11px 18px';
+  const avatarSize     = isMobile ? 48 : 40;
+
+  // mentions view
   if (activeView === 'mentions') {
     return (
-      <div className={className} style={{ display: 'flex', flexDirection: 'column', width: 360, borderRight: '0.5px solid var(--ws-border)', background: 'var(--ws-bg)', flexShrink: 0, height: '100%' }}>
+      <div className={className} style={{ display: 'flex', flexDirection: 'column', width: containerWidth, borderRight: isMobile ? 'none' : '0.5px solid var(--ws-border)', background: 'var(--ws-bg)', flexShrink: 0, height: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', padding: '0 18px', height: 57, borderBottom: '0.5px solid var(--ws-border)' }}>
           <h2 style={{ fontSize: 20, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>Mentions</h2>
         </div>
@@ -62,11 +77,11 @@ export default function ConversationList({
           {(mentionedMessages || []).map((msg, i) => (
             <button key={i}
               onClick={() => onSelectConversation({ id: msg.sourceId, type: msg.sourceType })}
-              style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 18px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '0.5px solid var(--ws-border)' }}
+              style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 10, padding: rowPadding, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '0.5px solid var(--ws-border)' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
               onMouseLeave={e => e.currentTarget.style.background = 'none'}
             >
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0 }}>
+              <div style={{ width: avatarSize, height: avatarSize, borderRadius: '50%', background: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0 }}>
                 {initials(msg.senderName)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -84,10 +99,17 @@ export default function ConversationList({
     );
   }
 
+  // get the right header title based on mobile tab
+  const headerTitle = isMobile && activeMobileTab === 'dms'
+    ? 'Messages'
+    : isMobile && activeMobileTab === 'spaces'
+    ? 'Spaces'
+    : 'Home';
+
   return (
-    <div className={className} style={{ display: 'flex', flexDirection: 'column', width: 360, borderRight: '0.5px solid var(--ws-border)', background: 'var(--ws-bg)', flexShrink: 0, height: '100%' }}>
+    <div className={className} style={{ display: 'flex', flexDirection: 'column', width: containerWidth, borderRight: isMobile ? 'none' : '0.5px solid var(--ws-border)', background: 'var(--ws-bg)', flexShrink: 0, height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', height: 57, borderBottom: '0.5px solid var(--ws-border)', flexShrink: 0 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>Home</h2>
+        <h2 style={{ fontSize: 20, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>{headerTitle}</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 12, color: 'var(--ws-text-muted)' }}>Unread</span>
           <button onClick={() => setUnreadOnly(!unreadOnly)} style={{
@@ -108,7 +130,9 @@ export default function ConversationList({
         {filtered.map(item => (
           <button key={`${item.type}-${item.id}`} onClick={() => onSelectConversation(item)}
             style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
+              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+              padding: rowPadding,
+              minHeight: isMobile ? 72 : 'auto',
               background: selectedId === item.id ? 'rgba(26,115,232,0.09)' : 'none',
               border: 'none', cursor: 'pointer', textAlign: 'left',
               borderBottom: '0.5px solid var(--ws-border)',
@@ -116,28 +140,33 @@ export default function ConversationList({
             onMouseEnter={e => { if (selectedId !== item.id) e.currentTarget.style.background = 'var(--ws-hover)'; }}
             onMouseLeave={e => { if (selectedId !== item.id) e.currentTarget.style.background = 'none'; }}
           >
+            {/* avatar or space icon */}
             {item.isGroup ? (
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--ws-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'var(--ws-text-muted)', flexShrink: 0 }}>
+              <div style={{ width: avatarSize, height: avatarSize, borderRadius: isMobile ? 14 : 10, background: 'var(--ws-surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? 15 : 13, fontWeight: 600, color: 'var(--ws-text-muted)', flexShrink: 0 }}>
                 #{item.initials[0]}
               </div>
             ) : item.avatar_url ? (
-              <img src={item.avatar_url} alt={item.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              <img src={item.avatar_url} alt={item.name} style={{ width: avatarSize, height: avatarSize, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
             ) : (
-              <Avatar initials={item.initials} color="#0D9488" size={40} />
+              <Avatar initials={item.initials} color="#0D9488" size={avatarSize} />
             )}
+
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
-                <span style={{ fontSize: 13, fontWeight: item.unread > 0 ? 700 : 500, color: 'var(--ws-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: isMobile ? 14 : 13, fontWeight: item.unread > 0 ? 700 : 500, color: 'var(--ws-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.isGroup ? `#${item.name}` : item.name}
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--ws-text-muted)', flexShrink: 0, marginLeft: 6 }}>{formatTime(item.time)}</span>
               </div>
-              <p style={{ fontSize: 12, color: 'var(--ws-text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: item.unread > 0 ? 500 : 400 }}>
+              <p style={{ fontSize: isMobile ? 13 : 12, color: 'var(--ws-text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: item.unread > 0 ? 500 : 400 }}>
                 {item.preview}
               </p>
             </div>
+
             {item.unread > 0 && (
-              <span style={{ fontSize: 10, fontWeight: 700, background: '#1a73e8', color: '#fff', borderRadius: 10, padding: '2px 6px', flexShrink: 0 }}>{item.unread}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, background: '#1a73e8', color: '#fff', borderRadius: 10, padding: '2px 6px', flexShrink: 0 }}>
+                {item.unread}
+              </span>
             )}
           </button>
         ))}

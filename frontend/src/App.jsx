@@ -6,7 +6,7 @@ import { ToastProvider, useToast } from './context/ToastContext.jsx';
 import AdminApp from './Admin/AdminApp.jsx';
 import ProfileSettingsModal from './components/ui/ProfileSettingsModal.jsx';
 import ChatSettingsModal from './components/ui/ChatSettingsModal.jsx';
-import { getSpaces, getSpaceMessages, sendSpaceMessage, editSpaceMessage, deleteSpaceMessage, getSpaceMembers } from './api/spaces.js';
+import BottomNav from './components/BottomNav.jsx';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -21,12 +21,26 @@ import ConversationList from './components/layout/ConversationList.jsx';
 import ChatArea from './components/layout/ChatArea.jsx';
 import RightIconRail from './components/layout/RightIconRail.jsx';
 import CalendarView from './components/calendar/CalendarView.jsx';
+
+import { getSpaces, getSpaceMessages, sendSpaceMessage, editSpaceMessage, deleteSpaceMessage, getSpaceMembers } from './api/spaces.js';
 import { getAllUsers, getDMMessages, sendDMMessage } from './api/users.js';
 import { addReaction, removeReaction, getDMConversations } from './api/messages.js';
+
+// anything under 768px is mobile
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
 
 function ChatApp({ onSignOut, onOpenAdmin }) {
   const { user, refreshUser } = useAuth();
   const { showToast } = useToast();
+  const isMobile = useIsMobile();
   const {
     connected,
     joinSpace, leaveSpace, joinDM,
@@ -44,46 +58,56 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     avatar_url: user.avatar_url,
   };
 
-  const [spaces, setSpaces] = useState([]);
-  const [allUsers, setAllUsers] = useState([]);
+  const [spaces, setSpaces]           = useState([]);
+  const [allUsers, setAllUsers]       = useState([]);
   const [dmConversations, setDmConversations] = useState([]);
   const [activeSpace, setActiveSpace] = useState(null);
-  const [activeDM, setActiveDM] = useState(null);
-  const [activeView, setActiveView] = useState('home');
-  const [messages, setMessages] = useState([]);
+  const [activeDM, setActiveDM]       = useState(null);
+  const [activeView, setActiveView]   = useState('home');
+  const [messages, setMessages]       = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore]         = useState(false);
   const [spaceMembers, setSpaceMembers] = useState([]);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
-  const [showChatSettings, setShowChatSettings] = useState(false);
+  const [showChatSettings, setShowChatSettings]       = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentStatus, setCurrentStatus] = useState('active');
-  const [isMaximized, setIsMaximized] = useState(false);
+  const [isMaximized, setIsMaximized]   = useState(false);
   const [navSearchQuery, setNavSearchQuery] = useState('');
-  const [typingUsers, setTypingUsers] = useState([]);
+  const [typingUsers, setTypingUsers]   = useState([]);
   const [activeDMConversationId, setActiveDMConversationId] = useState(null);
 
-  // Listen for the calendar back button event from CalendarView
+  // mobile nav state - which tab is selected
+  // 'home' shows conversation list, 'dms'/'spaces' filter the list
+  // 'calendar' opens calendar, 'chat' means a conversation is open
+  const [activeMobileTab, setActiveMobileTab] = useState('home');
+
+  // on mobile only one panel shows at a time
+  // 'list' = show conversation list, 'chat' = show chat area
+  const [mobileScreen, setMobileScreen] = useState('list');
+
+  // calendar back button listener
   useEffect(() => {
-    const handleCalendarBack = () => {
+    const goBack = () => {
       setActiveView('home');
       setActiveSpace(null);
       setActiveDM(null);
+      if (isMobile) setMobileScreen('list');
     };
-    window.addEventListener('calendar:back', handleCalendarBack);
-    return () => window.removeEventListener('calendar:back', handleCalendarBack);
-  }, []);
+    window.addEventListener('calendar:back', goBack);
+    return () => window.removeEventListener('calendar:back', goBack);
+  }, [isMobile]);
 
   useEffect(() => {
     getSpaces().then(setSpaces).catch(() => showToast('Failed to load spaces', 'error'));
-    getAllUsers().then(setAllUsers).catch(() => { });
-    getDMConversations().then(setDmConversations).catch(() => { });
+    getAllUsers().then(setAllUsers).catch(() => {});
+    getDMConversations().then(setDmConversations).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (!connected) return;
     return onDMPreviewUpdated(() => {
-      getDMConversations().then(setDmConversations).catch(() => { });
+      getDMConversations().then(setDmConversations).catch(() => {});
     });
   }, [connected]);
 
@@ -195,17 +219,42 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
   const handleSelectSpace = async (space) => {
     setActiveSpace(space); setActiveDM(null); setActiveView('space');
     setSpaceMembers([]);
-    // Fetch real members for this space so the Members panel works
+    // on mobile open the chat screen right away
+    if (isMobile) setMobileScreen('chat');
     try {
       const members = await getSpaceMembers(space.id);
       setSpaceMembers(members);
     } catch { setSpaceMembers([]); }
   };
-  const handleSelectDM = (dmUser) => { setActiveDM(dmUser); setActiveSpace(null); setActiveView('dm'); setActiveDMConversationId(null); };
+
+  const handleSelectDM = (dmUser) => {
+    setActiveDM(dmUser); setActiveSpace(null); setActiveView('dm');
+    setActiveDMConversationId(null);
+    // on mobile open the chat screen right away
+    if (isMobile) setMobileScreen('chat');
+  };
+
+  // back button handler - on mobile goes back to list, on desktop goes home
   const handleBackToHome = () => {
     setActiveSpace(null); setActiveDM(null);
     setActiveView('home'); setIsMaximized(false);
     setMessages([]); setTypingUsers([]); setSpaceMembers([]);
+    if (isMobile) setMobileScreen('list');
+  };
+
+  // bottom nav tab change handler
+  const handleMobileTabChange = (tab) => {
+    setActiveMobileTab(tab);
+    if (tab === 'calendar') {
+      setActiveView('calendar');
+      setMobileScreen('list'); // calendar handles its own full screen
+    } else {
+      // switching tabs goes back to the list
+      setActiveView('home');
+      setMobileScreen('list');
+      setActiveSpace(null);
+      setActiveDM(null);
+    }
   };
 
   const handleSendMessage = async (text) => {
@@ -216,7 +265,6 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     } catch { showToast('Failed to send message', 'error'); }
   };
 
-
   const handleEditMessage = async (msgId, content) => {
     if (!activeSpace) return;
     try {
@@ -226,7 +274,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
       ));
     } catch (err) {
       showToast('Failed to edit message', 'error');
-      throw err; 
+      throw err;
     }
   };
 
@@ -234,7 +282,6 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     if (!activeSpace) return;
     try {
       await deleteSpaceMessage(activeSpace.id, msgId);
-      // Remove locally immediately — don't rely on socket
       setMessages(prev => prev.filter(m => m.id !== msgId));
     } catch { showToast('Failed to delete message', 'error'); }
   };
@@ -259,7 +306,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     try {
       let data;
       if (activeView === 'space' && activeSpace) data = await getSpaceMessages(activeSpace.id, oldest.created_at || oldest.time);
-      else if (activeView === 'dm' && activeDM) data = await getDMMessages(activeDM.id, oldest.created_at);
+      else if (activeView === 'dm' && activeDM)   data = await getDMMessages(activeDM.id, oldest.created_at);
       if (data?.messages) { setMessages(prev => [...data.messages.map(formatMsg), ...prev]); setHasMore(data.hasMore || false); }
     } catch { showToast('Failed to load more messages', 'error'); }
   };
@@ -269,11 +316,19 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     else if (activeView === 'dm' && activeDMConversationId) emitTyping('dm', activeDMConversationId, user.name, isTyping);
   };
 
-  const chatTitle = activeView === 'space' && activeSpace ? activeSpace.name : activeDM?.name || '';
+  const chatTitle   = activeView === 'space' && activeSpace ? activeSpace.name : activeDM?.name || '';
   const memberCount = activeView === 'space' && activeSpace ? activeSpace.memberCount : null;
 
+  // on mobile figure out what to show
+  // mobileScreen = 'chat' means user tapped a conversation
+  // mobileScreen = 'list' means show the conversation list
+  const showMobileChatScreen = isMobile && mobileScreen === 'chat';
+  const showMobileListScreen = isMobile && mobileScreen === 'list';
+
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white"
+      style={{ paddingBottom: isMobile ? 60 : 0 }}>
+
       <TopNavbar
         currentStatus={currentStatus}
         onStatusChange={setCurrentStatus}
@@ -289,10 +344,18 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
         onOpenCalendar={() => setActiveView('calendar')}
         onOpenChat={() => { setActiveSpace(null); setActiveDM(null); setActiveView('home'); }}
         activeView={activeView}
+        isMobile={isMobile}
+        onMobileBack={handleBackToHome}
+        mobileChatTitle={chatTitle}
+        showMobileBackBtn={showMobileChatScreen}
       />
+
       <div className="flex flex-1 overflow-hidden">
-        {activeView !== 'calendar' && (
+
+        {/* left sidebar hidden on mobile via CSS class */}
+        {!isMobile && activeView !== 'calendar' && (
           <LeftSidebar
+            className="ws-left-sidebar"
             isOpen={isSidebarOpen}
             onSelectSpace={handleSelectSpace}
             onSelectDM={handleSelectDM}
@@ -301,18 +364,21 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
             activeView={activeView}
             onHomeClick={handleBackToHome}
             onMentionsClick={() => { setActiveSpace(null); setActiveDM(null); setActiveView('mentions'); setIsMaximized(false); }}
-            onCreateSpace={() => { }}
+            onCreateSpace={() => {}}
             allSpaces={formattedSpaces}
             currentUser={currentUser}
             dmUsers={dmUsers}
           />
         )}
+
         {activeView === 'calendar' ? (
           <CalendarView isSidebarOpen={isSidebarOpen} navSearchQuery={navSearchQuery} />
         ) : (
           <>
-            {!isMaximized && (
+            {/* on desktop always show both, on mobile show only one at a time */}
+            {(!isMobile || showMobileListScreen) && !isMaximized && (
               <ConversationList
+                className="ws-conversation-list"
                 activeView={activeView}
                 onSelectConversation={(item) => {
                   if (item.type === 'space') { const s = formattedSpaces.find(s => s.id === item.id); if (s) handleSelectSpace(s); }
@@ -324,39 +390,63 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
                 allSpaces={formattedSpaces}
                 dmConversations={dmConversations}
                 currentUserId={user.id}
+                isMobile={isMobile}
+                activeMobileTab={activeMobileTab}
               />
             )}
-            <ChatArea
-              title={chatTitle}
-              memberCount={memberCount}
-              messages={messagesLoading ? [] : formattedMessages}
-              onSend={handleSendMessage}
-              isSpace={activeView === 'space'}
-              activeView={activeView}
-              onClose={handleBackToHome}
-              isMaximized={isMaximized}
-              onToggleMaximize={() => setIsMaximized(prev => !prev)}
-              spaceMembers={spaceMembers}
-              currentUserId={user.id}
-              onEditMessage={handleEditMessage}
-              onDeleteMessage={handleDeleteMessage}
-              onAddReaction={handleAddReaction}
-              onRemoveReaction={handleRemoveReaction}
-              typingUsers={typingUsers}
-              messagesLoading={messagesLoading}
-              hasMore={hasMore}
-              onLoadMore={handleLoadMore}
-              onTypingChange={handleTypingChange}
-              spaceId={activeSpace?.id}
-            />
+
+            {/* only show chat area on mobile when user tapped a conversation */}
+            {(!isMobile || showMobileChatScreen) && (
+              <ChatArea
+                className="ws-chat-area"
+                title={chatTitle}
+                memberCount={memberCount}
+                messages={messagesLoading ? [] : formattedMessages}
+                onSend={handleSendMessage}
+                isSpace={activeView === 'space'}
+                activeView={activeView}
+                onClose={handleBackToHome}
+                isMaximized={isMaximized}
+                onToggleMaximize={() => setIsMaximized(prev => !prev)}
+                spaceMembers={spaceMembers}
+                currentUserId={user.id}
+                onEditMessage={handleEditMessage}
+                onDeleteMessage={handleDeleteMessage}
+                onAddReaction={handleAddReaction}
+                onRemoveReaction={handleRemoveReaction}
+                typingUsers={typingUsers}
+                messagesLoading={messagesLoading}
+                hasMore={hasMore}
+                onLoadMore={handleLoadMore}
+                onTypingChange={handleTypingChange}
+                spaceId={activeSpace?.id}
+                isMobile={isMobile}
+              />
+            )}
           </>
         )}
-        {activeView !== 'calendar' && (
-          <RightIconRail onNavigateToCalendar={() => setActiveView('calendar')} />
+
+        {/* right rail hidden on mobile */}
+        {!isMobile && activeView !== 'calendar' && (
+          <RightIconRail
+            className="ws-right-rail"
+            onNavigateToCalendar={() => setActiveView('calendar')}
+          />
         )}
       </div>
+
+      {/* bottom nav only shows on mobile */}
+      {isMobile && (
+        <BottomNav
+          activeMobileTab={activeMobileTab}
+          onTabChange={handleMobileTabChange}
+          currentUser={currentUser}
+          onOpenProfileSettings={() => setShowProfileSettings(true)}
+        />
+      )}
+
       {showProfileSettings && <ProfileSettingsModal onClose={() => setShowProfileSettings(false)} />}
-      {showChatSettings && <ChatSettingsModal onClose={() => setShowChatSettings(false)} />}
+      {showChatSettings    && <ChatSettingsModal    onClose={() => setShowChatSettings(false)} />}
     </div>
   );
 }
@@ -384,10 +474,10 @@ function AppRouter() {
   }
 
   if (user) return <WorkspaceRoot user={user} onSignOut={handleSignOut} />;
-  if (page === 'login') return <LoginPage onNavigate={navigate} />;
-  if (page === 'privacy') return <PrivacyPolicyPage onNavigate={navigate} />;
-  if (page === 'terms') return <TermsPage onNavigate={navigate} />;
-  if (page === 'cookie') return <CookiePolicyPage onNavigate={navigate} />;
+  if (page === 'login')    return <LoginPage    onNavigate={navigate} />;
+  if (page === 'privacy')  return <PrivacyPolicyPage onNavigate={navigate} />;
+  if (page === 'terms')    return <TermsPage    onNavigate={navigate} />;
+  if (page === 'cookie')   return <CookiePolicyPage onNavigate={navigate} />;
   if (page === 'security') return <SecurityPage onNavigate={navigate} />;
   return <LandingPage onNavigate={navigate} />;
 }

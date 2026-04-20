@@ -17,10 +17,7 @@ html.chat-mode, html.chat-mode body, html.chat-mode #root {
   overflow: hidden;
 }
 
-/* ── Workspace dark-mode CSS variables ────────────────────────────────── */
-/* All workspace components reference these — changing the html.dark class  */
-/* flips the entire workspace to dark mode in one shot.                     */
-
+/* workspace CSS variables - all components use these */
 :root {
   --ws-bg:               #ffffff;
   --ws-surface:          #f8f9fa;
@@ -38,6 +35,7 @@ html.chat-mode, html.chat-mode body, html.chat-mode #root {
   --ws-bubble-other:     #f0f0f0;
   --ws-bubble-other-text:#111827;
   --ws-thread-line:      #e5e7eb;
+  --ws-bottom-nav:       #ffffff;
 }
 
 html.dark {
@@ -57,66 +55,124 @@ html.dark {
   --ws-bubble-other:     #2d2d2d;
   --ws-bubble-other-text:#f0f0f0;
   --ws-thread-line:      rgba(255,255,255,0.1);
+  --ws-bottom-nav:       #111111;
 }
-
-/* ── Scrollbars ─────────────────────────────────────────────────────────── */
 
 ::-webkit-scrollbar        { width: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: var(--ws-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ws-text-muted); }
 
-/* ── Animations ─────────────────────────────────────────────────────────── */
-
 @keyframes fadeSlideDown {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 
-/* Animated skeleton loader — applied to skeleton divs */
 .skeleton-shimmer {
   background: linear-gradient(90deg, var(--ws-skeleton) 25%, rgba(255,255,255,0.08) 50%, var(--ws-skeleton) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* ── Mobile layout helpers ──────────────────────────────────────────────── */
+/* ── MOBILE STYLES ── */
+/* anything under 768px gets the phone layout */
 
 @media (max-width: 768px) {
-  .ws-conversation-list { display: none !important; }
-  .ws-right-rail        { display: none !important; }
-  .ws-sidebar-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-    z-index: 40; display: none;
-  }
-  .ws-sidebar-overlay.active { display: block; }
-  .ws-sidebar {
-    position: fixed !important; left: 0; top: 0; bottom: 0;
-    z-index: 50; width: 280px !important;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-  }
-  .ws-sidebar.open { transform: translateX(0); }
-  .ws-navbar-title  { display: none; }
-  .ws-status-btn    { display: none !important; }
-}
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  /* left sidebar stays hidden on mobile, bottom nav handles navigation */
+  .ws-left-sidebar {
+    display: none !important;
+  }
+
+  /* right icon rail not needed on mobile */
+  .ws-right-rail {
+    display: none !important;
+  }
+
+  /* on mobile the conversation list takes full width */
+  .ws-conversation-list {
+    width: 100% !important;
+    flex-shrink: unset !important;
+    border-right: none !important;
+  }
+
+  /* chat area takes full width too */
+  .ws-chat-area {
+    width: 100% !important;
+    flex: 1 !important;
+  }
+
+  /* navbar is a bit shorter on mobile */
+  .ws-navbar {
+    height: 52px !important;
+    padding: 0 12px !important;
+  }
+
+  /* hide the search bar on mobile, we show a search icon instead */
+  .ws-navbar-search {
+    display: none !important;
+  }
+
+  /* hide status pill on mobile, not enough space */
+  .ws-status-pill {
+    display: none !important;
+  }
+
+  /* hide theme toggle on mobile, its in settings */
+  .ws-theme-toggle-nav {
+    display: none !important;
+  }
+
+  /* hide help icon on mobile */
+  .ws-help-btn {
+    display: none !important;
+  }
+
+  /* hide apps icon on mobile */
+  .ws-apps-btn {
+    display: none !important;
+  }
+
+  /* hide admin star on mobile (can use admin panel from profile menu) */
+  .ws-admin-btn {
+    display: none !important;
+  }
+
+  /* bottom nav height variable so chatarea can add padding */
+  :root {
+    --bottom-nav-height: 60px;
+  }
+
+  /* chat input box needs padding above bottom nav */
+  .ws-chat-input-wrap {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* make conversation list rows taller for finger tapping */
+  .ws-conv-row {
+    padding: 14px 16px !important;
+    min-height: 72px !important;
+  }
+
+  /* bigger avatars in conversation list on phone */
+  .ws-conv-avatar {
+    width: 48px !important;
+    height: 48px !important;
+  }
 }
