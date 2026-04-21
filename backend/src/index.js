@@ -78,7 +78,6 @@ app.use(sessionMiddleware);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Share the session with Socket.io so we can read userId from socket
 io.engine.use(sessionMiddleware);
 io.engine.use(passport.initialize());
 io.engine.use(passport.session());
@@ -103,7 +102,7 @@ app.get('/db-test', async (req, res) => {
   }
 });
 
-// Global error handler
+
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err.stack);
   res.status(err.status || 500).json({ message: err.message || 'Internal server error' });

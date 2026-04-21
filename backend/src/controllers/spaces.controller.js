@@ -1,7 +1,5 @@
 const pool = require('../config/db');
 
-// Returns spaces filtered by membership for regular users.
-// Admins see all spaces so the admin panel works fully.
 const getSpaces = async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   try {

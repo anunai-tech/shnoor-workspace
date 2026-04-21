@@ -1,6 +1,6 @@
 const pool = require('../config/db');
 
-// userId → Set<socketId>  — handles multiple open tabs per user
+
 const onlineUsers = new Map();
 
 const getOnlineUserIds = () => Array.from(onlineUsers.keys());
@@ -10,16 +10,14 @@ const socketHandler = (io) => {
     const userId = socket.request.session?.passport?.user;
     if (!userId) { socket.disconnect(true); return; }
 
-    // Personal room — receives targeted events like role changes,
-    // DM preview updates, read receipt confirmations
+    
     socket.join(`user:${userId}`);
 
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
     onlineUsers.get(userId).add(socket.id);
     io.emit('users:online', getOnlineUserIds());
 
-    // Auto-join every existing DM room so this user receives real-time DM
-    // messages even for conversations they haven't explicitly opened today
+    
     try {
       const convs = await pool.query(
         `SELECT id FROM direct_conversations WHERE user_one_id = $1 OR user_two_id = $1`,
@@ -33,8 +31,7 @@ const socketHandler = (io) => {
     socket.on('join_space', (spaceId) => socket.join(`space:${spaceId}`));
     socket.on('leave_space', (spaceId) => socket.leave(`space:${spaceId}`));
 
-    // Client sends otherUserId — server resolves or creates the conversation
-    // and joins this socket to its room
+    
     socket.on('join_dm', async (otherUserId) => {
       try {
         const a = userId < otherUserId ? userId : otherUserId;
@@ -69,7 +66,7 @@ const socketHandler = (io) => {
 
     socket.on('leave_dm', (conversationId) => socket.leave(`dm:${conversationId}`));
 
-    // Typing — per-socket timer auto-clears after 5s if typing:stop never arrives
+    
     const typingTimers = {};
 
     socket.on('typing:start', ({ roomType, roomId, userName }) => {
@@ -88,8 +85,7 @@ const socketHandler = (io) => {
       socket.to(room).emit('typing:update', { userId, isTyping: false });
     });
 
-    // Client tells the server it has read a conversation — server broadcasts
-    // the read event back to the room so the sender's "Seen" indicator updates
+    
     socket.on('mark:space_read', async (spaceId) => {
       try {
         await pool.query(

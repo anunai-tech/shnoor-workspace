@@ -1,9 +1,6 @@
 const router = require("express").Router();
 const passport = require("passport");
 
-// Kick off Google OAuth. prompt: select_account forces the account chooser screen
-// every single time — so signing out and back in always shows the picker,
-// not silently reuse whoever was last logged in.
 router.get(
   "/google",
   passport.authenticate("google", {
@@ -13,8 +10,6 @@ router.get(
   })
 );
 
-// Google redirects back here after the user picks their account.
-// On failure (wrong domain, user cancelled), send them back to the React app.
 router.get(
   "/google/callback",
   passport.authenticate("google", {
@@ -25,9 +20,7 @@ router.get(
   }
 );
 
-// Logout — this is called via Axios from the frontend, not a direct browser nav.
-// We destroy the session completely (not just passport deauth) and clear the cookie,
-// then return JSON. The React app handles navigation after this resolves.
+
 router.get("/logout", (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
