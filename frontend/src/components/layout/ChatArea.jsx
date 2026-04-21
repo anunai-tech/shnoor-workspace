@@ -43,7 +43,6 @@ function AttachmentPreview({ attachments }) {
   );
 }
 
-// action buttons that appear on hover (desktop) or long press (mobile)
 const ActionBtn = ({ title, onClick, children, danger = false }) => (
   <button title={title} onClick={onClick} style={{
     background: 'none', border: 'none', cursor: 'pointer',
@@ -68,11 +67,34 @@ function MessageBubble({
   const [showPicker,        setShowPicker]         = useState(false);
   const [showMobileActions, setShowMobileActions]  = useState(false);
   const longPressTimer = useRef(null);
+  // BUG FIX 1: delay ref so mouse can travel from bubble to action bar without losing hover
+  const leaveTimer = useRef(null);
+
+  // Clean up leave timer on unmount
+  useEffect(() => {
+    return () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    };
+  }, []);
 
   const isOwn     = msg.senderId === currentUserId;
   const reactions = groupReactions(msg.reactions);
 
-  // 500ms hold on mobile triggers the action bar
+  const handleMouseEnter = () => {
+    if (isMobile) return;
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    setHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (isMobile) return;
+    // 150ms grace window — if mouse re-enters before this fires, it's cancelled
+    leaveTimer.current = setTimeout(() => {
+      setHovered(false);
+      setShowPicker(false);
+    }, 150);
+  };
+
   const handleTouchStart = () => {
     longPressTimer.current = setTimeout(() => setShowMobileActions(true), 500);
   };
@@ -80,7 +102,6 @@ function MessageBubble({
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
   };
 
-  // shared set of action buttons so we don't duplicate JSX
   const renderButtons = (closeAfterAction) => (
     <>
       <div style={{ position: 'relative' }}>
@@ -91,7 +112,6 @@ function MessageBubble({
           </svg>
         </ActionBtn>
         {showPicker && (
-          // zIndex 9999 ensures picker floats above everything including the mobile action bar
           <div style={{ position: 'fixed', zIndex: 9999, bottom: isMobile ? 140 : 'auto', top: isMobile ? 'auto' : 'auto' }}>
             <EmojiPicker
               onSelect={(emoji) => { onReact(msg.id, emoji); setShowPicker(false); setShowMobileActions(false); }}
@@ -113,7 +133,7 @@ function MessageBubble({
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
           </ActionBtn>
-          <ActionBtn title="Delete" onClick={() => { onDelete(msg.id); closeAfterAction?.(); }}>
+          <ActionBtn title="Delete" danger onClick={() => { onDelete(msg.id); closeAfterAction?.(); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -126,8 +146,8 @@ function MessageBubble({
 
   return (
     <div
-      onMouseEnter={() => !isMobile && setHovered(true)}
-      onMouseLeave={() => { if (!isMobile) { setHovered(false); setShowPicker(false); } }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchEnd}
@@ -139,7 +159,6 @@ function MessageBubble({
         position: 'relative',
       }}
     >
-      {/* avatar — only for others' messages */}
       {!isOwn && (
         <div style={{ flexShrink: 0, marginBottom: 4 }}>
           {msg.avatar_url
@@ -157,15 +176,15 @@ function MessageBubble({
           {msg.is_edited && <span style={{ fontSize: 10, color: 'var(--ws-text-muted)', fontStyle: 'italic' }}>(edited)</span>}
         </div>
 
-        {/* reply preview */}
+        {/* reply preview  */}
         {msg.parentContent && (
           <div style={{
             borderLeft: '3px solid #0D9488', padding: '4px 8px', marginBottom: 4,
-            background: isOwn ? 'rgba(255,255,255,0.12)' : 'var(--ws-surface-2)',
+            background: 'var(--ws-surface-2)',
             borderRadius: '0 6px 6px 0', fontSize: 12,
-            color: isOwn ? 'rgba(255,255,255,0.8)' : 'var(--ws-text-muted)', maxWidth: 280,
+            color: 'var(--ws-text-muted)', maxWidth: 280,
           }}>
-            <div style={{ fontWeight: 600, marginBottom: 2, fontSize: 11 }}>↩ {msg.parentSenderName}</div>
+            <div style={{ fontWeight: 600, marginBottom: 2, fontSize: 11, color: '#0D9488' }}>↩ {msg.parentSenderName}</div>
             <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.parentContent}</div>
           </div>
         )}
@@ -230,7 +249,7 @@ function MessageBubble({
           </div>
         )}
 
-        {/* DESKTOP: action bar floats ABOVE the bubble using bottom: 100% so it's never clipped by scroll container */}
+        {/* DESKTOP: action bar floats ABOVE the bubble */}
         {!isMobile && hovered && !isEditing && !isDeleting && (
           <div style={{
             position: 'absolute',
@@ -250,7 +269,7 @@ function MessageBubble({
           </div>
         )}
 
-        {/* MOBILE: action bar appears inline BELOW the bubble after long press — no absolute positioning = no clipping */}
+        {/* MOBILE: action bar appears inline BELOW the bubble after long press */}
         {isMobile && showMobileActions && !isEditing && !isDeleting && (
           <div style={{
             display: 'flex', gap: 2, marginTop: 6,
@@ -452,7 +471,6 @@ export default function ChatArea({
     if (!input.trim() && !pendingFiles.length) return;
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     onTypingChange?.(false);
-    // pass parentMessageId and attachments to App.jsx which now accepts them
     onSend(input.trim(), replyingTo?.id || null, pendingFiles);
     setInput(''); setPendingFiles([]); setReplyingTo(null); setShowMentionDropdown(false);
     inputRef.current?.focus();
@@ -464,7 +482,7 @@ export default function ChatArea({
       await onEditMessage(editingId, editContent.trim());
       setEditingId(null); setEditContent('');
     } catch {
-      // keep textarea open so user can see the edit failed
+      // keeping textarea open so user can see the edit failed
     }
   };
 
@@ -481,7 +499,6 @@ export default function ChatArea({
     setLoadingMore(false);
   };
 
-  // on mobile we never render empty state since list screen handles navigation
   if (!title || activeView === 'home' || activeView === 'mentions') {
     if (isMobile) return null;
     return (
@@ -680,7 +697,7 @@ export default function ChatArea({
         </div>
       </div>
 
-      {/* members panel — full screen overlay on mobile */}
+      {/* members panel */}
       {showMembers && isSpace && (
         <div style={{
           width: isMobile ? '100%' : 240,

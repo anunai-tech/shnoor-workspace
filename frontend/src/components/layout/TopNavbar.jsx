@@ -31,7 +31,7 @@ const AppsIcon = () => (
   </svg>
 );
 const SunIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="5" />
     <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
     <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
@@ -40,8 +40,13 @@ const SunIcon = () => (
   </svg>
 );
 const MoonIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+);
+const AdminIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
   </svg>
 );
 
@@ -86,9 +91,12 @@ function HelpDropdown({ onClose }) {
   );
 }
 
-function AppsDropdown({ onClose }) {
+// AppsDropdown now receives isAdmin + onOpenAdmin so buttons actually work.
+
+function AppsDropdown({ onClose, isAdmin, onOpenAdmin }) {
   const ref = useRef(null);
   useClickOutside(ref, onClose);
+
   return (
     <div ref={ref} style={{
       position: 'absolute', top: 48, right: 0, zIndex: 50, width: 220,
@@ -97,27 +105,47 @@ function AppsDropdown({ onClose }) {
       animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
     }}>
       <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--ws-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '10px 14px 6px' }}>Apps</p>
-      {[{ name: 'Admin Panel', icon: '⭐', desc: 'Manage users and spaces' }, { name: 'Contact Form', icon: '✉️', desc: 'Submit a support request' }].map(app => (
-        <button key={app.name} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+
+      {isAdmin && (
+        <button
+          onClick={() => { onOpenAdmin?.(); onClose(); }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
-          <span style={{ fontSize: 18 }}>{app.icon}</span>
+          {/* Clean SVG icon, no emoji */}
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: 'rgba(13,148,136,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>{app.name}</p>
-            <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0 }}>{app.desc}</p>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)', margin: 0 }}>Admin Panel</p>
+            <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0 }}>Manage users and spaces</p>
           </div>
         </button>
-      ))}
+      )}
+
+      {!isAdmin && (
+        <div style={{ padding: '16px 14px', textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: 'var(--ws-text-muted)', margin: 0 }}>No apps available</p>
+        </div>
+      )}
     </div>
   );
 }
 
+// ProfileDropdown — emojis replaced with SVG icons. 
 function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOut, isAdmin, onOpenAdmin }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
   const ref = useRef(null);
   useClickOutside(ref, onClose);
+
   return (
     <div ref={ref} style={{
       position: 'absolute', top: 48, right: 0, zIndex: 50, width: 280,
@@ -125,6 +153,7 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
       borderRadius: 14, boxShadow: '0 8px 30px rgba(0,0,0,0.14)',
       animation: 'fadeSlideDown 0.15s ease-out', overflow: 'hidden',
     }}>
+      {/* User info header */}
       <div style={{ padding: '14px 16px', borderBottom: '0.5px solid var(--ws-border)', display: 'flex', gap: 10, alignItems: 'center' }}>
         <Avatar initials={currentUser.initials} color={currentUser.color} size={40} avatarUrl={currentUser.avatar_url} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -132,38 +161,59 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
           <p style={{ fontSize: 12, color: 'var(--ws-text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.email}</p>
         </div>
       </div>
+
       <div style={{ padding: '6px 0' }}>
-        <button onClick={() => { onOpenProfileSettings(); onClose(); }} style={{ width: '100%', display: 'block', padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--ws-text)' }}
+        {/* Profile Settings */}
+        <button
+          onClick={() => { onOpenProfileSettings(); onClose(); }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--ws-text)' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
           Profile Settings
         </button>
 
-        <button onClick={() => { toggleTheme(); onClose(); }} style={{
-          width: '100%', display: 'block', padding: '9px 16px', textAlign: 'left',
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 13, fontWeight: 500, color: 'var(--ws-text)',
-        }}
+        {/* Dark / Light Mode — SVG icon instead of emoji */}
+        <button
+          onClick={() => { toggleTheme(); onClose(); }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--ws-text)' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
-          {isDark ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          <span style={{ color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center' }}>
+            {isDark ? <SunIcon /> : <MoonIcon />}
+          </span>
+          {isDark ? 'Light Mode' : 'Dark Mode'}
         </button>
 
-        {/* admin panel accessible from profile menu on mobile too */}
+        {/* Admin Panel — SVG shield icon instead of emoji */}
         {isAdmin && (
-          <button onClick={() => { onOpenAdmin(); onClose(); }} style={{ width: '100%', display: 'block', padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#1a73e8' }}
+          <button
+            onClick={() => { onOpenAdmin(); onClose(); }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#1a73e8' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            ⭐ Admin Panel
+            <span style={{ color: '#1a73e8', display: 'flex', alignItems: 'center' }}>
+              <AdminIcon />
+            </span>
+            Admin Panel
           </button>
         )}
-        <button onClick={() => { onSignOut?.(); onClose(); }} style={{ width: '100%', display: 'block', padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#ef4444' }}
+
+        {/* Sign Out */}
+        <button
+          onClick={() => { onSignOut?.(); onClose(); }}
+          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#ef4444' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
           Sign Out
         </button>
       </div>
@@ -171,7 +221,6 @@ function ProfileDropdown({ currentUser, onClose, onOpenProfileSettings, onSignOu
   );
 }
 
-// status pill is removed — we only show the green online dot on the avatar
 export default function TopNavbar({
   onOpenChatSettings, onOpenProfileSettings,
   onToggleSidebar, navSearchQuery, onNavSearchChange,
@@ -181,8 +230,8 @@ export default function TopNavbar({
 }) {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
-  const [showHelp, setShowHelp] = useState(false);
-  const [showApps, setShowApps] = useState(false);
+  const [showHelp,    setShowHelp]    = useState(false);
+  const [showApps,    setShowApps]    = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -200,17 +249,15 @@ export default function TopNavbar({
       background: 'var(--ws-navbar)', flexShrink: 0, position: 'relative', zIndex: 20,
     }}>
 
-      {/* left side: back arrow on mobile chat, hamburger on desktop */}
+      {/* left side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: isMobile ? 'auto' : 180 }}>
         {isMobile && showMobileBackBtn ? (
           <button onClick={onMobileBack} style={{ ...navBtn, width: 40, height: 40 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
         ) : !isMobile ? (
-          // only show hamburger on desktop — mobile uses BottomNav for navigation
           <button style={navBtn} onClick={onToggleSidebar} title="Toggle sidebar"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -259,17 +306,20 @@ export default function TopNavbar({
       {/* right controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: isMobile ? 'auto' : 0 }}>
 
-        {/* theme toggle — hidden on mobile */}
+        {/* theme toggle — desktop only */}
         {!isMobile && (
           <button style={navBtn} onClick={toggleTheme} title={isDark ? 'Light mode' : 'Dark mode'}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
-            {isDark ? <SunIcon /> : <MoonIcon />}
+            {isDark
+              ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            }
           </button>
         )}
 
-        {/* help — hidden on mobile */}
+        {/* help — desktop only */}
         {!isMobile && (
           <div style={{ position: 'relative' }}>
             <button style={navBtn} onClick={() => setShowHelp(p => !p)} title="Help"
@@ -290,19 +340,20 @@ export default function TopNavbar({
           <SettingsIcon />
         </button>
 
-        {/* admin star — desktop only (mobile uses profile dropdown) */}
+        {/* admin star — desktop only */}
         {isAdmin && !isMobile && (
           <button style={navBtn} onClick={onOpenAdmin} title="Admin panel"
             onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ws-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </button>
         )}
 
-        {/* apps — desktop only */}
+        {/* apps dropdown — desktop only.
+            BUG FIX 5: pass isAdmin + onOpenAdmin so Admin Panel button works. */}
         {!isMobile && (
           <div style={{ position: 'relative' }}>
             <button style={navBtn} onClick={() => setShowApps(p => !p)} title="Apps"
@@ -311,7 +362,13 @@ export default function TopNavbar({
             >
               <AppsIcon />
             </button>
-            {showApps && <AppsDropdown onClose={() => setShowApps(false)} />}
+            {showApps && (
+              <AppsDropdown
+                onClose={() => setShowApps(false)}
+                isAdmin={isAdmin}
+                onOpenAdmin={onOpenAdmin}
+              />
+            )}
           </div>
         )}
 
@@ -326,7 +383,6 @@ export default function TopNavbar({
           >
             <div style={{ position: 'relative' }}>
               <Avatar initials={currentUser.initials} color={currentUser.color} size={32} avatarUrl={currentUser.avatar_url} />
-              {/* green online dot — this is all we need, no status pill */}
               <span style={{
                 position: 'absolute', bottom: -1, right: -1, width: 10, height: 10,
                 borderRadius: '50%', border: '2px solid var(--ws-navbar)', background: '#34A853',
