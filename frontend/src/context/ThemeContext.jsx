@@ -2,25 +2,30 @@ import { createContext, useContext, useState, useEffect } from "react";
 
 const ThemeContext = createContext();
 
+const themes = ["light", "dark", "red", "green"];
+
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem("shnoor-theme") || "light"; } catch { return "light"; }
+    try { return sessionStorage.getItem("shnoor-theme") || "light"; } catch { return "light"; }
   });
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
-    try { localStorage.setItem("shnoor-theme", theme); } catch {}
+    root.classList.remove("dark", "theme-red", "theme-green");
+    if (theme === "dark")  root.classList.add("dark");
+    if (theme === "red")   root.classList.add("theme-red");
+    if (theme === "green") root.classList.add("theme-green");
+    try { sessionStorage.setItem("shnoor-theme", theme); } catch {}
   }, [theme]);
 
-  const toggleTheme = () => setTheme(p => p === "dark" ? "light" : "dark");
+  const toggleTheme = () =>
+    setTheme(prev => {
+      const idx = themes.indexOf(prev);
+      return themes[(idx + 1) % themes.length];
+    });
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, themes }}>
       {children}
     </ThemeContext.Provider>
   );

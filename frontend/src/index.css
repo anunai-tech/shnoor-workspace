@@ -17,10 +17,6 @@ html.chat-mode, html.chat-mode body, html.chat-mode #root {
   overflow: hidden;
 }
 
-/* ── Workspace dark-mode CSS variables ────────────────────────────────── */
-/* All workspace components reference these — changing the html.dark class  */
-/* flips the entire workspace to dark mode in one shot.                     */
-
 :root {
   --ws-bg:               #ffffff;
   --ws-surface:          #f8f9fa;
@@ -59,14 +55,11 @@ html.dark {
   --ws-thread-line:      rgba(255,255,255,0.1);
 }
 
-/* ── Scrollbars ─────────────────────────────────────────────────────────── */
-
 ::-webkit-scrollbar        { width: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  { background: var(--ws-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--ws-text-muted); }
 
-/* ── Animations ─────────────────────────────────────────────────────────── */
 
 @keyframes fadeSlideDown {
   from { opacity: 0; transform: translateY(-8px); }
@@ -88,14 +81,12 @@ html.dark {
   100% { background-position:  200% 0; }
 }
 
-/* Animated skeleton loader — applied to skeleton divs */
 .skeleton-shimmer {
   background: linear-gradient(90deg, var(--ws-skeleton) 25%, rgba(255,255,255,0.08) 50%, var(--ws-skeleton) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* ── Mobile layout helpers ──────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
   .ws-conversation-list { display: none !important; }
@@ -119,4 +110,41 @@ html.dark {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+html.theme-red {
+  --ws-bg:               #fff5f5;
+  --ws-surface:          #ffe4e4;
+  --ws-surface-2:        #fecaca;
+  --ws-text:             #1a0000;
+  --ws-text-muted:       #9b2222;
+  --ws-border:           #fca5a5;
+  --ws-hover:            rgba(220,38,38,0.06);
+  --ws-input-bg:         #fff0f0;
+  --ws-skeleton:         #fecaca;
+  --ws-navbar:           #ffe4e4;
+  --ws-sidebar:          #fff5f5;
+  --ws-bubble-own:       #dc2626;
+  --ws-bubble-own-text:  #ffffff;
+  --ws-bubble-other:     #fecaca;
+  --ws-bubble-other-text:#1a0000;
+  --ws-thread-line:      #fca5a5;
+}
+html.theme-green {
+  --ws-bg:               #f0fdf4;
+  --ws-surface:          #dcfce7;
+  --ws-surface-2:        #bbf7d0;
+  --ws-text:             #052e16;
+  --ws-text-muted:       #166534;
+  --ws-border:           #86efac;
+  --ws-hover:            rgba(22,163,74,0.06);
+  --ws-input-bg:         #f0fdf4;
+  --ws-skeleton:         #bbf7d0;
+  --ws-navbar:           #dcfce7;
+  --ws-sidebar:          #f0fdf4;
+  --ws-bubble-own:       #16a34a;
+  --ws-bubble-own-text:  #ffffff;
+  --ws-bubble-other:     #bbf7d0;
+  --ws-bubble-other-text:#052e16;
+  --ws-thread-line:      #86efac;
 }
