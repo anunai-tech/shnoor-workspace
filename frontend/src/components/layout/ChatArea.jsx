@@ -67,7 +67,7 @@ function MessageBubble({
   const [showPicker,        setShowPicker]         = useState(false);
   const [showMobileActions, setShowMobileActions]  = useState(false);
   const longPressTimer = useRef(null);
-  // BUG FIX 1: delay ref so mouse can travel from bubble to action bar without losing hover
+  
   const leaveTimer = useRef(null);
 
   // Clean up leave timer on unmount
@@ -88,7 +88,7 @@ function MessageBubble({
 
   const handleMouseLeave = () => {
     if (isMobile) return;
-    // 150ms grace window — if mouse re-enters before this fires, it's cancelled
+    // grace window — if mouse re-enters before this fires, it's cancelled
     leaveTimer.current = setTimeout(() => {
       setHovered(false);
       setShowPicker(false);

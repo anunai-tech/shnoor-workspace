@@ -35,9 +35,6 @@ export default function AddTaskModal({ onClose, onSave, isMobile = false }) {
         width: isMobile ? '100%' : 420,
         display: 'flex',
         flexDirection: 'column',
-        // cap to a safe height that keeps footer always visible.
-        // On mobile the keyboard shrinks the viewport — 70vh gives enough room
-        // for header + 3 fields + footer even with keyboard open (~350px visible).
         maxHeight: isMobile ? '70vh' : 'auto',
         paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 8px)' : 0,
       }}>

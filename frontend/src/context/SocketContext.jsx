@@ -34,8 +34,7 @@ export function SocketProvider({ children }) {
 
   const emit = (event, data) => socketRef.current?.emit(event, data);
 
-  // Registers a socket event listener and returns a cleanup function.
-  // Safe to call before the socket connects — returns a no-op if socket isn't ready.
+  
   const on = (event, callback) => {
     if (!socketRef.current) return () => { };
     const safe = (...args) => { try { callback(...args); } catch (e) { console.error(e); } };
@@ -61,8 +60,7 @@ export function SocketProvider({ children }) {
   const onDMJoined = (cb) => on('dm:joined', cb);
   const onTypingUpdate = (cb) => on('typing:update', cb);
 
-  // Fires when any DM conversation the user is part of receives a new message.
-  // Used to refresh the sidebar conversation list preview regardless of current view.
+  
   const onDMPreviewUpdated = (cb) => on('dm:preview_updated', cb);
 
   // Fires when an admin changes this user's role — triggers a user state refresh

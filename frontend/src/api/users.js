@@ -22,7 +22,7 @@ export const sendDMMessage = (otherUserId, content, parentMessageId = null, atta
 export const updateMyProfile = (name) =>
   api.patch('/api/users/me', { name }).then(r => r.data);
 
-// Old base64 avatar — kept for compatibility but new code uses uploadAvatarToCloud
+
 export const updateMyAvatar = (avatar) =>
   api.patch('/api/users/me/avatar', { avatar }).then(r => r.data);
 

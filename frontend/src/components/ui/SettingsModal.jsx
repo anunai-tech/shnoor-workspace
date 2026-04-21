@@ -34,7 +34,6 @@ export default function SettingsModal({ onClose }) {
   };
 
   const handleSave = () => {
-    // In a real app, this would save to backend
     alert("Settings saved!");
     onClose();
   };

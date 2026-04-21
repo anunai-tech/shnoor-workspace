@@ -26,8 +26,6 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  // Re-fetches the user from the server and updates state — called when something
-  // changes the user record externally, like an admin changing this user's role
   const refreshUser = async () => {
     try {
       const res = await api.get('/auth/me');

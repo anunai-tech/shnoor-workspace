@@ -253,7 +253,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     }
   };
 
-  // FIXED: accepts parentMessageId + attachments so reply and file send work
+
   const handleSendMessage = async (text, parentMessageId = null, attachments = []) => {
     // allow sending if there's text OR files attached
     if (!text.trim() && !attachments?.length) return;
@@ -265,7 +265,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     } catch { showToast('Failed to send message', 'error'); }
   };
 
-  // FIXED: handles both space and DM — no more !activeSpace early return
+
   const handleEditMessage = async (msgId, content) => {
     try {
       if (activeView === 'space' && activeSpace) {
@@ -282,7 +282,7 @@ function ChatApp({ onSignOut, onOpenAdmin }) {
     }
   };
 
-  // FIXED: handles both space and DM
+
   const handleDeleteMessage = async (msgId) => {
     try {
       if (activeView === 'space' && activeSpace)

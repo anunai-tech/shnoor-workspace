@@ -73,7 +73,7 @@ export default function AdminApp({ onBack }) {
       overflow: 'hidden',
     }}>
 
-      {/* ── Mobile top bar ── */}
+      {/* Mobile top bar */}
       {isMobile && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
@@ -119,7 +119,7 @@ export default function AdminApp({ onBack }) {
         </div>
       )}
 
-      {/* ── Body (sidebar + content) ── */}
+      {/*Body (sidebar + content)*/}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Desktop sidebar — always visible */}
@@ -132,7 +132,7 @@ export default function AdminApp({ onBack }) {
           />
         )}
 
-        {/* Mobile drawer — slide-in overlay */}
+        {/* Mobile drawer slide-in overlay */}
         {isMobile && drawerOpen && (
           <>
             {/* dim backdrop */}

@@ -145,7 +145,7 @@ html.dark {
   animation: shimmer 1.5s infinite;
 }
 
-/* ── MOBILE STYLES ── */
+/* MOBILE STYLES */
 /* anything under 768px gets the phone layout */
 
 @media (max-width: 768px) {
