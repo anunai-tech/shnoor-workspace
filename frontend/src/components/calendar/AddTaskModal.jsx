@@ -2,12 +2,12 @@ import { useState } from "react";
 
 const CloseIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
+    <line x1="18" y1="6" x2="6" y2="18"/>
+    <line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 );
 
-export default function AddTaskModal({ onClose, onSave }) {
+export default function AddTaskModal({ onClose, onSave, isMobile = false }) {
   const [taskName, setTaskName] = useState("");
   const [taskDate, setTaskDate] = useState("");
   const [taskTime, setTaskTime] = useState("");
@@ -20,59 +20,125 @@ export default function AddTaskModal({ onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" style={{ animation: "fadeIn 0.2s" }}>
-      <div className="bg-white rounded-lg shadow-xl w-[400px] overflow-hidden" style={{ animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-[#f8f9fa]">
-          <h3 className="text-[16px] font-semibold text-[#3c4043]">Add task</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex',
+      alignItems: isMobile ? 'flex-end' : 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.4)',
+      animation: 'fadeIn 0.2s',
+    }}>
+      <div style={{
+        background: 'var(--ws-bg)',
+        borderRadius: isMobile ? '16px 16px 0 0' : 12,
+        boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+        width: isMobile ? '100%' : 420,
+        display: 'flex',
+        flexDirection: 'column',
+        // cap to a safe height that keeps footer always visible.
+        // On mobile the keyboard shrinks the viewport — 70vh gives enough room
+        // for header + 3 fields + footer even with keyboard open (~350px visible).
+        maxHeight: isMobile ? '70vh' : 'auto',
+        paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 8px)' : 0,
+      }}>
+
+        {/* header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '0.5px solid var(--ws-border)',
+          background: 'var(--ws-surface)',
+          borderRadius: isMobile ? '16px 16px 0 0' : '12px 12px 0 0',
+          flexShrink: 0,
+        }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--ws-text)', margin: 0 }}>Add task</h3>
+          <button onClick={onClose} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', color: 'var(--ws-text-muted)', display: 'flex' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
             <CloseIcon />
           </button>
         </div>
-        
-        <div className="p-5 flex flex-col gap-4">
+
+        {/* fields — scrollable if content overflows */}
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1 }}>
           <div>
-            <label className="block text-[12px] font-medium text-gray-700 mb-1">Task Name</label>
-            <input 
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--ws-text-muted)', marginBottom: 6 }}>Task Name</label>
+            <input
               value={taskName}
               onChange={e => setTaskName(e.target.value)}
-              placeholder="e.g., Update project docs" 
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-[#1a73e8] text-[14px]"
-              autoFocus
+              placeholder="e.g., Update project docs"
+              // do NOT autoFocus on mobile 
+              autoFocus={!isMobile}
+              onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose(); }}
+              style={{
+                width: '100%', padding: '10px 12px',
+                border: '0.5px solid var(--ws-border)', borderRadius: 8,
+                fontSize: isMobile ? 16 : 14,
+                background: 'var(--ws-input-bg)', color: 'var(--ws-text)',
+                outline: 'none', boxSizing: 'border-box',
+              }}
+              onFocus={e => e.target.style.borderColor = '#1a73e8'}
+              onBlur={e => e.target.style.borderColor = 'var(--ws-border)'}
             />
           </div>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-[12px] font-medium text-gray-700 mb-1">Date</label>
-              <input 
-                type="date"
-                value={taskDate}
-                onChange={e => setTaskDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-[#1a73e8] text-[14px] text-gray-800"
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--ws-text-muted)', marginBottom: 6 }}>Date</label>
+              <input
+                type="date" value={taskDate} onChange={e => setTaskDate(e.target.value)}
+                style={{
+                  width: '100%', padding: '10px 12px',
+                  border: '0.5px solid var(--ws-border)', borderRadius: 8,
+                  fontSize: isMobile ? 16 : 14,
+                  background: 'var(--ws-input-bg)', color: 'var(--ws-text)',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => e.target.style.borderColor = '#1a73e8'}
+                onBlur={e => e.target.style.borderColor = 'var(--ws-border)'}
               />
             </div>
-            <div className="flex-1">
-              <label className="block text-[12px] font-medium text-gray-700 mb-1">Time</label>
-              <input 
-                type="time"
-                value={taskTime}
-                onChange={e => setTaskTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-[#1a73e8] text-[14px] text-gray-800"
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--ws-text-muted)', marginBottom: 6 }}>Time</label>
+              <input
+                type="time" value={taskTime} onChange={e => setTaskTime(e.target.value)}
+                style={{
+                  width: '100%', padding: '10px 12px',
+                  border: '0.5px solid var(--ws-border)', borderRadius: 8,
+                  fontSize: isMobile ? 16 : 14,
+                  background: 'var(--ws-input-bg)', color: 'var(--ws-text)',
+                  outline: 'none', boxSizing: 'border-box',
+                }}
+                onFocus={e => e.target.style.borderColor = '#1a73e8'}
+                onBlur={e => e.target.style.borderColor = 'var(--ws-border)'}
               />
             </div>
           </div>
         </div>
-        
-        <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2 bg-[#f8f9fa]">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 rounded-md hover:bg-gray-100 font-medium text-[13px] text-[#5f6368] transition-colors"
+
+        {/* footer — flexShrink:0 ensures it's always visible even if fields overflow */}
+        <div style={{
+          padding: '14px 20px',
+          borderTop: '0.5px solid var(--ws-border)',
+          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          background: 'var(--ws-surface)',
+          flexShrink: 0,
+        }}>
+          <button onClick={onClose}
+            style={{ padding: '9px 18px', borderRadius: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--ws-text-muted)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
           >
             Cancel
           </button>
-          <button 
-            onClick={handleSave}
-            disabled={!taskName.trim()}
-            className="px-4 py-2 rounded-md bg-[#1a73e8] text-white font-medium text-[13px] hover:bg-[#1557b0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          <button onClick={handleSave} disabled={!taskName.trim()}
+            style={{
+              padding: '9px 18px', borderRadius: 6,
+              background: taskName.trim() ? '#1a73e8' : 'var(--ws-surface-2)',
+              color: taskName.trim() ? '#fff' : 'var(--ws-text-muted)',
+              border: 'none',
+              cursor: taskName.trim() ? 'pointer' : 'not-allowed',
+              fontSize: 13, fontWeight: 600, minWidth: 90,
+            }}
           >
             Save Task
           </button>

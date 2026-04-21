@@ -307,6 +307,49 @@ exports.sendDMMessage = async (req, res) => {
   }
 };
 
+exports.editDMMessage = async (req, res) => {
+  const { msgId } = req.params;
+  const { content } = req.body;
+  if (!content?.trim()) return res.status(400).json({ message: 'Content cannot be empty' });
+  const clean = xss(content.trim());
+  try {
+    // update only if the message is a DM message and belongs to this user
+    const result = await pool.query(
+      `UPDATE messages
+       SET content=$1, is_edited=true, updated_at=NOW()
+       WHERE id=$2 AND conversation_id IS NOT NULL AND sender_id=$3
+       RETURNING id, content, is_edited, updated_at, sender_id, conversation_id`,
+      [clean, msgId, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'Message not found or permission denied' });
+    const message = result.rows[0];
+    req.app.get('io').to(`dm:${message.conversation_id}`).emit('message:edited', { ...message, space_id: null });
+    res.json(message);
+  } catch (err) {
+    console.error('editDMMessage error:', err);
+    res.status(500).json({ message: 'Failed to edit DM message' });
+  }
+};
+
+exports.deleteDMMessage = async (req, res) => {
+  const { msgId } = req.params;
+  try {
+    const check = await pool.query(
+      `SELECT sender_id, conversation_id FROM messages WHERE id=$1 AND conversation_id IS NOT NULL`,
+      [msgId]
+    );
+    if (!check.rows.length) return res.status(404).json({ message: 'Message not found' });
+    if (check.rows[0].sender_id !== req.user.id) return res.status(403).json({ message: 'You can only delete your own messages' });
+    const conversationId = check.rows[0].conversation_id;
+    await pool.query(`DELETE FROM messages WHERE id=$1`, [msgId]);
+    req.app.get('io').to(`dm:${conversationId}`).emit('message:deleted', { messageId: msgId, conversationId });
+    res.json({ messageId: msgId });
+  } catch (err) {
+    console.error('deleteDMMessage error:', err);
+    res.status(500).json({ message: 'Failed to delete DM message' });
+  }
+};
+
 exports.getDMConversations = async (req, res) => {
   const userId = req.user.id;
   try {

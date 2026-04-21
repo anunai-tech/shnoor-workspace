@@ -1,28 +1,27 @@
 import { useState, useEffect } from "react";
 
-export default function CalendarMain({ viewMode, onViewModeChange, currentDate, setCurrentDate, tasks, indianHolidays }) {
+export default function CalendarMain({
+  viewMode, onViewModeChange, currentDate, setCurrentDate,
+  tasks, indianHolidays, isMobile = false, onAddTask,
+}) {
 
   const handlePrev = () => {
-    const newDate = new Date(currentDate);
-    if (viewMode === "Day") newDate.setDate(newDate.getDate() - 1);
-    if (viewMode === "Week") newDate.setDate(newDate.getDate() - 7);
-    if (viewMode === "Month") newDate.setMonth(newDate.getMonth() - 1);
-    if (viewMode === "Year") newDate.setFullYear(newDate.getFullYear() - 1);
-    setCurrentDate(newDate);
+    const d = new Date(currentDate);
+    if (viewMode === "Day") d.setDate(d.getDate() - 1);
+    if (viewMode === "Week") d.setDate(d.getDate() - 7);
+    if (viewMode === "Month") d.setMonth(d.getMonth() - 1);
+    if (viewMode === "Year") d.setFullYear(d.getFullYear() - 1);
+    setCurrentDate(d);
   };
-
   const handleNext = () => {
-    const newDate = new Date(currentDate);
-    if (viewMode === "Day") newDate.setDate(newDate.getDate() + 1);
-    if (viewMode === "Week") newDate.setDate(newDate.getDate() + 7);
-    if (viewMode === "Month") newDate.setMonth(newDate.getMonth() + 1);
-    if (viewMode === "Year") newDate.setFullYear(newDate.getFullYear() + 1);
-    setCurrentDate(newDate);
+    const d = new Date(currentDate);
+    if (viewMode === "Day") d.setDate(d.getDate() + 1);
+    if (viewMode === "Week") d.setDate(d.getDate() + 7);
+    if (viewMode === "Month") d.setMonth(d.getMonth() + 1);
+    if (viewMode === "Year") d.setFullYear(d.getFullYear() + 1);
+    setCurrentDate(d);
   };
-
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
+  const handleToday = () => setCurrentDate(new Date());
 
   const hours = Array.from({ length: 24 }, (_, i) => {
     if (i === 0) return "";
@@ -33,7 +32,6 @@ export default function CalendarMain({ viewMode, onViewModeChange, currentDate, 
 
   const getMonthName = (date) => ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][date.getMonth()];
   const getDayName = (date) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
-
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -41,17 +39,13 @@ export default function CalendarMain({ viewMode, onViewModeChange, currentDate, 
     return () => clearInterval(timer);
   }, []);
 
-  // Timezone-safe: always format a Date as local YYYY-MM-DD
   const toLocalDateStr = (d) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
-
-  // Normalise a task date string to YYYY-MM-DD (handles full ISO timestamps too)
   const normDate = (s) => (s ? String(s).slice(0, 10) : '');
-
   const calculateTop = (timeStr) => {
     if (!timeStr) return 0;
     const [h, m] = timeStr.split(':').map(Number);
@@ -61,115 +55,91 @@ export default function CalendarMain({ viewMode, onViewModeChange, currentDate, 
   const CurrentTimeLine = () => {
     const top = (currentTime.getHours() * 60) + currentTime.getMinutes();
     return (
-      <div className="absolute w-full flex items-center z-30 pointer-events-none" style={{ top: `${top}px` }}>
-        <div className="w-3 h-3 rounded-full bg-[#ea4335] -ml-1.5 shadow-sm" />
-        <div className="h-[2px] w-full bg-[#ea4335]" />
+      <div style={{ position: 'absolute', width: '100%', display: 'flex', alignItems: 'center', zIndex: 30, pointerEvents: 'none', top: `${top}px` }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ea4335', marginLeft: -6 }} />
+        <div style={{ height: 2, flex: 1, background: '#ea4335' }} />
       </div>
     );
   };
 
-  // Render Day View
   const renderDayView = () => (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex border-b border-gray-200">
-        <div className="w-[60px] border-r border-gray-200 flex-shrink-0" />
-        <div className="flex-1 text-center py-3 border-r border-gray-200 min-w-0">
-          <div className="text-[11px] font-medium text-[#70757a] uppercase mb-1">{getDayName(currentDate)}</div>
-          <div className="w-12 h-12 rounded-full bg-[#1a73e8] text-white text-[24px] flex items-center justify-center mx-auto">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', borderBottom: '0.5px solid var(--ws-border)' }}>
+        <div style={{ width: 60, borderRight: '0.5px solid var(--ws-border)', flexShrink: 0 }} />
+        <div style={{ flex: 1, textAlign: 'center', padding: '12px 0', borderRight: '0.5px solid var(--ws-border)' }}>
+          <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--ws-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{getDayName(currentDate)}</div>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#1a73e8', color: '#fff', fontSize: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto' }}>
             {currentDate.getDate()}
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-        <div className="flex">
-          <div className="w-[60px] flex-shrink-0 flex flex-col">
+      <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        <div style={{ display: 'flex' }}>
+          <div style={{ width: 60, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             {hours.map((hour, i) => (
-              <div key={i} className="h-[60px] relative">
-                <span className="absolute -top-3 right-2 text-[10px] text-[#70757a]">{hour}</span>
+              <div key={i} style={{ height: 60, position: 'relative' }}>
+                <span style={{ position: 'absolute', top: -8, right: 8, fontSize: 10, color: 'var(--ws-text-muted)' }}>{hour}</span>
               </div>
             ))}
           </div>
-          <div className="flex-1 relative border-l border-gray-200 min-w-0">
+          <div style={{ flex: 1, position: 'relative', borderLeft: '0.5px solid var(--ws-border)' }}>
             {Array.from({ length: 24 }).map((_, i) => (
-              <div key={i} className="h-[60px] border-b border-gray-100 last:border-b-0 w-full" />
+              <div key={i} style={{ height: 60, borderBottom: `0.5px solid var(--ws-border)` }} />
             ))}
             {currentDate.toDateString() === new Date().toDateString() && <CurrentTimeLine />}
-            
-            {/* Dynamic Tasks */}
-            {tasks.filter(t => normDate(t.date) === toLocalDateStr(currentDate)).map((task, idx) => {
-              const topPos = calculateTop(task.time);
-              return (
-                <div
-                  key={idx}
-                  style={{ top: `${topPos}px` }}
-                  className="absolute left-2 right-4 h-[3.5rem] bg-[#e8f0fe] border-l-4 border-[#1a73e8] rounded-md p-2 overflow-hidden hover:shadow-lg transition-all cursor-pointer z-20"
-                >
-                  <span className="text-[12px] font-semibold text-[#1a73e8] block truncate">{task.title}</span>
-                  <span className="text-[10px] text-[#1a73e8] font-medium opacity-80">{task.time ? task.time.slice(0,5) : ''}</span>
-                </div>
-              );
-            })}
+            {tasks.filter(t => normDate(t.date) === toLocalDateStr(currentDate)).map((task, idx) => (
+              <div key={idx} style={{ position: 'absolute', left: 8, right: 16, height: 56, top: calculateTop(task.time), background: '#e8f0fe', borderLeft: '4px solid #1a73e8', borderRadius: 6, padding: 8, overflow: 'hidden', zIndex: 20 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#1a73e8', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                <span style={{ fontSize: 10, color: '#1a73e8', opacity: 0.8 }}>{task.time ? task.time.slice(0, 5) : ''}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </div>
   );
 
-  // Render Week View
   const renderWeekView = () => {
     const startOfWeek = new Date(currentDate);
     startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-
     const weekDays = Array.from({ length: 7 }, (_, i) => {
       const date = new Date(startOfWeek);
       date.setDate(date.getDate() + i);
       return date;
     });
-
     return (
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex border-b border-gray-200">
-          <div className="w-[60px] border-r border-gray-200 flex-shrink-0" />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', borderBottom: '0.5px solid var(--ws-border)' }}>
+          <div style={{ width: 60, borderRight: '0.5px solid var(--ws-border)', flexShrink: 0 }} />
           {weekDays.map((date, i) => (
-            <div key={i} className="flex-1 text-center py-3 border-r border-gray-200 min-w-0">
-              <div className="text-[11px] font-medium text-[#70757a] uppercase mb-1">{getDayName(date).substring(0, 3)}</div>
-              <div className={`w-10 h-10 rounded-full text-[20px] mx-auto flex items-center justify-center ${date.toDateString() === new Date().toDateString() ? 'bg-[#1a73e8] text-white' : 'text-[#3c4043]'}`}>
+            <div key={i} style={{ flex: 1, textAlign: 'center', padding: '10px 0', borderRight: '0.5px solid var(--ws-border)' }}>
+              <div style={{ fontSize: 11, color: 'var(--ws-text-muted)', textTransform: 'uppercase', marginBottom: 2 }}>{getDayName(date).substring(0, 1)}</div>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: date.toDateString() === new Date().toDateString() ? '#1a73e8' : 'none', color: date.toDateString() === new Date().toDateString() ? '#fff' : 'var(--ws-text)' }}>
                 {date.getDate()}
               </div>
             </div>
           ))}
         </div>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
-          <div className="flex">
-            <div className="w-[60px] flex-shrink-0 flex flex-col">
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ display: 'flex' }}>
+            <div style={{ width: 60, flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
               {hours.map((hour, i) => (
-                <div key={i} className="h-[60px] relative">
-                  <span className="absolute -top-3 right-2 text-[10px] text-[#70757a]">{hour}</span>
+                <div key={i} style={{ height: 60, position: 'relative' }}>
+                  <span style={{ position: 'absolute', top: -8, right: 8, fontSize: 10, color: 'var(--ws-text-muted)' }}>{hour}</span>
                 </div>
               ))}
             </div>
             {weekDays.map((date, dayIdx) => (
-              <div key={dayIdx} className="flex-1 relative border-l border-gray-200 min-w-0">
+              <div key={dayIdx} style={{ flex: 1, position: 'relative', borderLeft: '0.5px solid var(--ws-border)' }}>
                 {Array.from({ length: 24 }).map((_, i) => (
-                  <div key={i} className="h-[60px] border-b border-gray-100 last:border-b-0 w-full hover:bg-gray-50/30 cursor-pointer" />
+                  <div key={i} style={{ height: 60, borderBottom: '0.5px solid var(--ws-border)' }} />
                 ))}
-                
                 {date.toDateString() === new Date().toDateString() && <CurrentTimeLine />}
-                
-                {/* Dynamic Tasks for Week View */}
-                {tasks.filter(t => normDate(t.date) === toLocalDateStr(date)).map((task, idx) => {
-                  const topPos = calculateTop(task.time);
-                  return (
-                    <div
-                      key={idx}
-                      style={{ top: `${topPos}px` }}
-                      className="absolute left-1 right-1 h-[2.5rem] bg-[#e8f0fe] border-l-4 border-[#1a73e8] rounded-sm p-1 overflow-hidden hover:shadow-md transition-shadow cursor-pointer z-20"
-                    >
-                      <span className="text-[10px] font-semibold text-[#1a73e8] block truncate">{task.title}</span>
-                      <span className="text-[9px] text-[#1a73e8] opacity-70">{task.time ? task.time.slice(0,5) : ''}</span>
-                    </div>
-                  );
-                })}
+                {tasks.filter(t => normDate(t.date) === toLocalDateStr(date)).map((task, idx) => (
+                  <div key={idx} style={{ position: 'absolute', left: 2, right: 2, height: 40, top: calculateTop(task.time), background: '#e8f0fe', borderLeft: '3px solid #1a73e8', borderRadius: 4, padding: 4, overflow: 'hidden', zIndex: 20 }}>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#1a73e8', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -178,61 +148,61 @@ export default function CalendarMain({ viewMode, onViewModeChange, currentDate, 
     );
   };
 
-  // Render Month View
   const renderMonthView = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const numDays = new Date(year, month + 1, 0).getDate();
     const firstDay = new Date(year, month, 1).getDay();
-
     let days = Array.from({ length: firstDay }, () => null);
     for (let i = 1; i <= numDays; i++) days.push(i);
-    // Pad to multiple of 7
     while (days.length % 7 !== 0) days.push(null);
 
     return (
-      <div className="flex-1 flex flex-col overflow-hidden bg-white">
-        <div className="grid grid-cols-7 border-b border-gray-200 bg-white">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--ws-bg)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '0.5px solid var(--ws-border)', background: 'var(--ws-bg)' }}>
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
-            <div key={day} className="py-2 text-center text-[11px] font-medium text-[#70757a] uppercase border-r border-gray-200 last:border-none">
-              {day}
+            <div key={day} style={{ padding: '8px 0', textAlign: 'center', fontSize: 11, fontWeight: 500, color: 'var(--ws-text-muted)', textTransform: 'uppercase', borderRight: '0.5px solid var(--ws-border)' }}>
+              {isMobile ? day[0] : day}
             </div>
           ))}
         </div>
-        <div className="flex-1 grid grid-cols-7 grid-rows-5 overflow-hidden">
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: `repeat(${days.length / 7}, 1fr)`, overflow: 'hidden' }}>
           {days.map((day, i) => {
             const isToday = day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear();
+            const holiday = day ? indianHolidays[`${month + 1}-${day}`] : null;
+            const dayTasks = day ? tasks.filter(t => {
+              const d = new Date(t.date);
+              return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+            }) : [];
             return (
-              <div key={i} className="border-r border-b border-gray-200 p-1 min-h-[80px] hover:bg-gray-50 transition-colors cursor-pointer flex flex-col">
-                <div className="flex justify-center">
-                  <div className={`w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-medium mt-1 ${isToday ? 'bg-[#1a73e8] text-white' : 'text-[#3c4043]'}`}>
+              <div key={i} style={{ borderRight: '0.5px solid var(--ws-border)', borderBottom: '0.5px solid var(--ws-border)', padding: 4, minHeight: isMobile ? 60 : 80, display: 'flex', flexDirection: 'column', background: 'var(--ws-bg)', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--ws-bg)'}
+              >
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 2 }}>
+                  <div style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 12, fontWeight: 500, marginTop: 4, background: isToday ? '#1a73e8' : 'none', color: isToday ? '#fff' : 'var(--ws-text)' }}>
                     {day || ""}
                   </div>
                 </div>
-                
-                {/* Dynamic Content for Month View */}
-                {day && (
-                  <div className="flex flex-col gap-1 overflow-hidden mt-1 px-1">
-                    {/* Holiday */}
-                    {(() => {
-                      const holiday = indianHolidays[`${month + 1}-${day}`];
-                      return holiday && (
-                        <div className="bg-[#fce8e6] text-[#ea4335] text-[10px] px-1.5 py-0.5 rounded truncate font-medium" title={holiday}>
-                          {holiday}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Tasks */}
-                    {tasks.filter(t => {
-                      const d = new Date(t.date);
-                      return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
-                    }).map((task, idx) => (
-                      <div key={idx} className="flex items-center gap-1 bg-[#e8f0fe] text-[#1a73e8] px-1.5 py-0.5 rounded truncate transition-all hover:bg-[#d2e3fc]">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#1a73e8] flex-shrink-0"></div>
-                        <span className="text-[10px] truncate font-medium">{task.title}</span>
+                {day && !isMobile && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                    {holiday && (
+                      <div style={{ background: '#fce8e6', color: '#ea4335', fontSize: 10, padding: '1px 6px', borderRadius: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={holiday}>
+                        {holiday}
+                      </div>
+                    )}
+                    {dayTasks.map((task, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#e8f0fe', color: '#1a73e8', fontSize: 10, padding: '1px 6px', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#1a73e8', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
                       </div>
                     ))}
+                  </div>
+                )}
+                {day && isMobile && (holiday || dayTasks.length > 0) && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                    {holiday && <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#ea4335' }} />}
+                    {dayTasks.length > 0 && <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#1a73e8' }} />}
                   </div>
                 )}
               </div>
@@ -243,43 +213,38 @@ export default function CalendarMain({ viewMode, onViewModeChange, currentDate, 
     );
   };
 
-  // Render Year View
   const renderYearView = () => {
     const year = currentDate.getFullYear();
     const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
-
     return (
-      <div className="flex-1 overflow-y-auto p-8 bg-white grid grid-cols-3 lg:grid-cols-4 gap-8">
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 16 : 32, background: 'var(--ws-bg)', display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 16 : 32 }}>
         {months.map((monthDate, i) => (
-          <div key={i} className="flex flex-col">
-            <h3 className="text-[16px] font-semibold text-[#1a73e8] mb-4 text-center">{getMonthName(monthDate)}</h3>
-            <div className="grid grid-cols-7 gap-y-2 gap-x-1 text-center">
+          <div key={i} style={{ display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: isMobile ? 13 : 15, fontWeight: 600, color: '#1a73e8', marginBottom: 10, textAlign: 'center' }}>{getMonthName(monthDate)}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px 1px', textAlign: 'center' }}>
               {["S", "M", "T", "W", "T", "F", "S"].map((d, j) => (
-                <div key={j} className="text-[11px] font-medium text-[#70757a] mb-1">{d}</div>
+                <div key={j} style={{ fontSize: 10, fontWeight: 500, color: 'var(--ws-text-muted)', marginBottom: 4, height: 16 }}>{d}</div>
               ))}
               {(() => {
                 const numDays = new Date(year, i + 1, 0).getDate();
                 const firstDay = new Date(year, i, 1).getDay();
                 let days = Array.from({ length: firstDay }, () => null);
                 for (let k = 1; k <= numDays; k++) days.push(k);
-
                 return days.map((date, idx) => {
                   const isToday = date === new Date().getDate() && i === new Date().getMonth() && year === new Date().getFullYear();
-                  // Check if any task falls on this day
                   const hasTask = date && tasks.some(t => {
                     const d = new Date(normDate(t.date) + 'T00:00:00');
                     return d.getDate() === date && d.getMonth() === i && d.getFullYear() === year;
                   });
                   return (
-                    <div key={idx} className="flex flex-col items-center">
-                      <div className={`w-6 h-6 flex items-center justify-center rounded-full text-[12px] hover:bg-gray-100 cursor-pointer ${
-                        isToday ? 'bg-[#1a73e8] text-white font-bold' : 'text-[#3c4043]'
-                      }`}>
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', fontSize: 11, cursor: date ? 'pointer' : 'default', background: isToday ? '#1a73e8' : 'none', color: isToday ? '#fff' : 'var(--ws-text)', fontWeight: isToday ? 700 : 400 }}
+                        onMouseEnter={e => { if (!isToday && date) e.currentTarget.style.background = 'var(--ws-hover)'; }}
+                        onMouseLeave={e => { if (!isToday) e.currentTarget.style.background = 'none'; }}
+                      >
                         {date || ''}
                       </div>
-                      {hasTask && (
-                        <div className="w-1 h-1 rounded-full bg-[#1a73e8] mt-0.5" />
-                      )}
+                      {hasTask && <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#1a73e8', marginTop: 1 }} />}
                     </div>
                   );
                 });
@@ -291,45 +256,70 @@ export default function CalendarMain({ viewMode, onViewModeChange, currentDate, 
     );
   };
 
+  // on mobile only show Month, Tasks (hide Day/Week/Year to save space)
   const VIEW_MODES = ["Day", "Week", "Month", "Year", "Tasks"];
+  const VIEW_LABELS = isMobile
+    ? { Day: 'D', Week: 'W', Month: 'M', Year: 'Y', Tasks: '☑' }
+    : { Day: 'Day', Week: 'Week', Month: 'Month', Year: 'Year', Tasks: 'Tasks' };
 
   return (
-    <div className="flex-1 flex flex-col bg-white overflow-hidden">
-      {/* Calendar Action Bar */}
-      <div className="h-[52px] px-4 border-b border-gray-200 flex items-center gap-3 bg-white z-10 shadow-sm">
-        {/* Left: Today + nav arrows + date title */}
-        <button onClick={handleToday} className="px-3 py-1.5 border border-gray-300 rounded-md hover:bg-gray-50 text-[13px] font-medium text-[#3c4043] transition-colors shadow-sm flex-shrink-0">
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--ws-bg)', overflow: 'hidden' }}>
+
+      {/* action bar */}
+      <div style={{ height: isMobile ? 44 : 52, padding: isMobile ? '0 10px' : '0 16px', borderBottom: '0.5px solid var(--ws-border)', display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 10, background: 'var(--ws-bg)', flexShrink: 0, zIndex: 10 }}>
+        <button onClick={handleToday} style={{ padding: isMobile ? '4px 8px' : '5px 12px', border: '0.5px solid var(--ws-border)', borderRadius: 6, background: 'none', cursor: 'pointer', fontSize: isMobile ? 11 : 13, fontWeight: 500, color: 'var(--ws-text)', flexShrink: 0 }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
+        >
           Today
         </button>
-        <div className="flex gap-1 flex-shrink-0">
-          <button onClick={handlePrev} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-600">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+        <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+          <button onClick={handlePrev} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
-          <button onClick={handleNext} className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-gray-600">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          <button onClick={handleNext} style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', borderRadius: '50%', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'none'}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
         </div>
-        <h2 className="text-[18px] font-normal text-[#3c4043] flex-1 min-w-0 truncate">
-          {viewMode === "Day" ? `${getMonthName(currentDate)} ${currentDate.getDate()}, ${currentDate.getFullYear()}` : ''}
-          {viewMode === "Week" ? `${getMonthName(currentDate)} ${currentDate.getFullYear()}` : ''}
-          {viewMode === "Month" ? `${getMonthName(currentDate)} ${currentDate.getFullYear()}` : ''}
-          {viewMode === "Year" ? `${currentDate.getFullYear()}` : ''}
-          {viewMode === "Tasks" ? 'Tasks' : ''}
+        <h2 style={{ fontSize: isMobile ? 14 : 18, fontWeight: 400, color: 'var(--ws-text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {viewMode === "Day" && `${getMonthName(currentDate)} ${currentDate.getDate()}, ${currentDate.getFullYear()}`}
+          {viewMode === "Week" && `${getMonthName(currentDate)} ${currentDate.getFullYear()}`}
+          {viewMode === "Month" && `${getMonthName(currentDate)} ${currentDate.getFullYear()}`}
+          {viewMode === "Year" && `${currentDate.getFullYear()}`}
+          {viewMode === "Tasks" && 'Tasks'}
         </h2>
 
-        {/* Right: View mode segmented control */}
-        <div className="flex items-center flex-shrink-0 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+        {/* on mobile: add task button here since sidebar is hidden */}
+        {isMobile && (
+          <button onClick={onAddTask} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', background: '#e8f0fe', color: '#1a73e8', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 500, flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add
+          </button>
+        )}
+
+        {/* view mode switcher */}
+        <div style={{ display: 'flex', border: '0.5px solid var(--ws-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
           {VIEW_MODES.map((mode, idx) => (
-            <button
-              key={mode}
-              onClick={() => onViewModeChange && onViewModeChange(mode)}
-              className={`px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                viewMode === mode
-                  ? 'bg-[#1a73e8] text-white'
-                  : 'bg-white text-[#3c4043] hover:bg-gray-50'
-              } ${idx !== 0 ? 'border-l border-gray-200' : ''}`}
+            <button key={mode} onClick={() => onViewModeChange?.(mode)}
+              style={{
+                padding: isMobile ? '4px 8px' : '5px 12px', fontSize: isMobile ? 11 : 12, fontWeight: 500,
+                background: viewMode === mode ? '#1a73e8' : 'var(--ws-bg)',
+                color: viewMode === mode ? '#fff' : 'var(--ws-text)',
+                border: 'none', borderLeft: idx !== 0 ? '0.5px solid var(--ws-border)' : 'none',
+                cursor: 'pointer', transition: 'all 0.1s',
+              }}
+              onMouseEnter={e => { if (viewMode !== mode) e.currentTarget.style.background = 'var(--ws-hover)'; }}
+              onMouseLeave={e => { if (viewMode !== mode) e.currentTarget.style.background = 'var(--ws-bg)'; }}
             >
-              {mode}
+              {VIEW_LABELS[mode]}
             </button>
           ))}
         </div>

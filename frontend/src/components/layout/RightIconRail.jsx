@@ -20,31 +20,38 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
-export default function RightIconRail({ onNavigateToCalendar }) {
+// this whole rail is hidden on mobile via the ws-right-rail CSS class
+export default function RightIconRail({ onNavigateToCalendar, className = '' }) {
   return (
-    <div className="flex flex-col items-center w-[52px] bg-[#f8f9fa] border-l border-gray-200 flex-shrink-0 h-full">
-      <div className="flex flex-col items-center gap-1 py-3">
+    <div className={`ws-right-rail ${className}`}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 52, background: '#f8f9fa', borderLeft: '0.5px solid var(--ws-border)', flexShrink: 0, height: '100%' }}>
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingTop: 12 }}>
         <button
           onClick={onNavigateToCalendar}
-          className="w-10 h-10 flex items-center justify-center rounded-full text-[#5f6368] hover:bg-gray-200/70 transition-colors"
+          style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'none', cursor: 'pointer' }}
           title="Open Calendar"
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
           <CalendarIcon />
         </button>
       </div>
 
       <button
-        className="w-10 h-10 flex items-center justify-center rounded-full text-[#5f6368] hover:bg-gray-200/70 transition-colors mt-1"
+        style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'none', cursor: 'pointer', marginTop: 4 }}
         title="Add more"
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'none'}
       >
         <PlusIcon />
       </button>
 
-      <div className="flex-1" />
+      <div style={{ flex: 1 }} />
 
-      <div className="pb-3">
+      <div style={{ paddingBottom: 12 }}>
         <button
-          className="w-8 h-8 flex items-center justify-center rounded-full text-[#9aa0a6] hover:bg-gray-200/70 transition-colors"
+          style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', border: 'none', background: 'none', cursor: 'pointer' }}
           title="Collapse"
         >
           <ChevronRightIcon />

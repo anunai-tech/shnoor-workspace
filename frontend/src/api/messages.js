@@ -13,15 +13,20 @@ export const searchMessages = (q, spaceId = null) => {
   return api.get(`/api/search${params}`).then(r => r.data);
 };
 
-// cursor = ISO timestamp of the oldest conversation for pagination
 export const getDMConversations = () =>
   api.get('/api/dm/conversations').then(r => r.data);
 
-// Fetch threaded replies for a parent message
 export const getThreadReplies = (msgId) =>
   api.get(`/api/messages/${msgId}/thread`).then(r => r.data);
 
-// Upload a file to Cloudinary via the backend — returns { url, name, type, size }
+// edit a DM message by its id directly
+export const editDMMessage = (msgId, content) =>
+  api.patch(`/api/dm/messages/${msgId}`, { content }).then(r => r.data);
+
+// delete a DM message by its id directly
+export const deleteDMMessage = (msgId) =>
+  api.delete(`/api/dm/messages/${msgId}`).then(r => r.data);
+
 export const uploadFile = (file) => {
   const form = new FormData();
   form.append('file', file);

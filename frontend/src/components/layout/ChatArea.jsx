@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Avatar from '../ui/Avatar.jsx';
 import EmojiPicker from '../ui/EmojiPicker.jsx';
 import { searchMessages, uploadFile } from '../../api/messages.js';
@@ -32,8 +32,8 @@ function AttachmentPreview({ attachments }) {
             fontSize: 12, color: '#1a73e8', border: '0.5px solid var(--ws-border)',
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
             </svg>
             {a.name}
           </a>
@@ -43,26 +43,122 @@ function AttachmentPreview({ attachments }) {
   );
 }
 
+const ActionBtn = ({ title, onClick, children, danger = false }) => (
+  <button title={title} onClick={onClick} style={{
+    background: 'none', border: 'none', cursor: 'pointer',
+    padding: '5px 8px', borderRadius: 5, fontSize: 14,
+    transition: 'background 0.1s',
+    color: danger ? '#ef4444' : 'var(--ws-text)',
+  }}
+    onMouseEnter={e => e.currentTarget.style.background = danger ? 'rgba(239,68,68,0.08)' : 'var(--ws-hover)'}
+    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+  >
+    {children}
+  </button>
+);
+
 function MessageBubble({
   msg, currentUserId, onEdit, onDelete, onReact, onRemoveReact,
   isEditing, editContent, onEditChange, onEditSave, onEditCancel,
   isDeleting, onDeleteConfirm, onDeleteCancel, onReply,
+  isMobile = false,
 }) {
-  const [hovered, setHovered] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
-  const isOwn = msg.senderId === currentUserId;
+  const [hovered,           setHovered]           = useState(false);
+  const [showPicker,        setShowPicker]         = useState(false);
+  const [showMobileActions, setShowMobileActions]  = useState(false);
+  const longPressTimer = useRef(null);
+  // BUG FIX 1: delay ref so mouse can travel from bubble to action bar without losing hover
+  const leaveTimer = useRef(null);
+
+  // Clean up leave timer on unmount
+  useEffect(() => {
+    return () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    };
+  }, []);
+
+  const isOwn     = msg.senderId === currentUserId;
   const reactions = groupReactions(msg.reactions);
+
+  const handleMouseEnter = () => {
+    if (isMobile) return;
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    setHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (isMobile) return;
+    // 150ms grace window — if mouse re-enters before this fires, it's cancelled
+    leaveTimer.current = setTimeout(() => {
+      setHovered(false);
+      setShowPicker(false);
+    }, 150);
+  };
+
+  const handleTouchStart = () => {
+    longPressTimer.current = setTimeout(() => setShowMobileActions(true), 500);
+  };
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  const renderButtons = (closeAfterAction) => (
+    <>
+      <div style={{ position: 'relative' }}>
+        <ActionBtn title="React" onClick={() => setShowPicker(p => !p)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+        </ActionBtn>
+        {showPicker && (
+          <div style={{ position: 'fixed', zIndex: 9999, bottom: isMobile ? 140 : 'auto', top: isMobile ? 'auto' : 'auto' }}>
+            <EmojiPicker
+              onSelect={(emoji) => { onReact(msg.id, emoji); setShowPicker(false); setShowMobileActions(false); }}
+              onClose={() => setShowPicker(false)}
+            />
+          </div>
+        )}
+      </div>
+      <ActionBtn title="Reply" onClick={() => { onReply(msg); closeAfterAction?.(); }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+        </svg>
+      </ActionBtn>
+      {isOwn && (
+        <>
+          <ActionBtn title="Edit" onClick={() => { onEdit(msg.id, msg.text); closeAfterAction?.(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </ActionBtn>
+          <ActionBtn title="Delete" danger onClick={() => { onDelete(msg.id); closeAfterAction?.(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </ActionBtn>
+        </>
+      )}
+    </>
+  );
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setShowPicker(false); }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchEnd}
+      onClick={() => { if (showMobileActions) setShowMobileActions(false); }}
       style={{
         display: 'flex', flexDirection: isOwn ? 'row-reverse' : 'row',
-        alignItems: 'flex-end', gap: 8, padding: '2px 16px', position: 'relative',
+        alignItems: 'flex-end', gap: 8,
+        padding: isMobile ? '3px 12px' : '2px 16px',
+        position: 'relative',
       }}
     >
-      {/* Avatar — only shown for other people's messages */}
       {!isOwn && (
         <div style={{ flexShrink: 0, marginBottom: 4 }}>
           {msg.avatar_url
@@ -72,30 +168,28 @@ function MessageBubble({
         </div>
       )}
 
-      <div style={{ maxWidth: 'min(72%, 600px)', position: 'relative' }}>
-        {/* Sender name + timestamp */}
+      <div style={{ maxWidth: isMobile ? '82%' : 'min(72%, 600px)', position: 'relative' }}>
+        {/* name + time */}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 3, justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
           {!isOwn && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ws-text)' }}>{msg.senderName}</span>}
           <span style={{ fontSize: 10, color: 'var(--ws-text-muted)' }}>{msg.time}</span>
           {msg.is_edited && <span style={{ fontSize: 10, color: 'var(--ws-text-muted)', fontStyle: 'italic' }}>(edited)</span>}
         </div>
 
-        {/* Parent message preview for replies */}
+        {/* reply preview  */}
         {msg.parentContent && (
           <div style={{
-            borderLeft: '3px solid #0D9488',
-            padding: '4px 8px', marginBottom: 4,
-            background: isOwn ? 'rgba(255,255,255,0.12)' : 'var(--ws-surface-2)',
+            borderLeft: '3px solid #0D9488', padding: '4px 8px', marginBottom: 4,
+            background: 'var(--ws-surface-2)',
             borderRadius: '0 6px 6px 0', fontSize: 12,
-            color: isOwn ? 'rgba(255,255,255,0.8)' : 'var(--ws-text-muted)',
-            maxWidth: 280,
+            color: 'var(--ws-text-muted)', maxWidth: 280,
           }}>
-            <div style={{ fontWeight: 600, marginBottom: 2, fontSize: 11 }}>↩ {msg.parentSenderName}</div>
+            <div style={{ fontWeight: 600, marginBottom: 2, fontSize: 11, color: '#0D9488' }}>↩ {msg.parentSenderName}</div>
             <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.parentContent}</div>
           </div>
         )}
 
-        {/* Message bubble */}
+        {/* bubble */}
         {isEditing ? (
           <div>
             <textarea value={editContent} onChange={e => onEditChange(e.target.value)} autoFocus
@@ -119,9 +213,9 @@ function MessageBubble({
           <div style={{
             background: isOwn ? 'var(--ws-bubble-own)' : 'var(--ws-bubble-other)',
             color: isOwn ? 'var(--ws-bubble-own-text)' : 'var(--ws-bubble-other-text)',
-            padding: '8px 12px',
+            padding: isMobile ? '9px 13px' : '8px 12px',
             borderRadius: isOwn ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-            fontSize: 14, lineHeight: 1.5, wordBreak: 'break-word',
+            fontSize: isMobile ? 15 : 14, lineHeight: 1.5, wordBreak: 'break-word',
           }}>
             {(msg.text || '').split(/(@[\w ]+)/).map((part, i) =>
               part.startsWith('@')
@@ -132,7 +226,7 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Reactions */}
+        {/* reactions */}
         {reactions.length > 0 && !isEditing && !isDeleting && (
           <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
             {reactions.map(r => {
@@ -145,7 +239,6 @@ function MessageBubble({
                     borderRadius: 12, fontSize: 12, cursor: 'pointer',
                     border: `1px solid ${iMine ? '#0D9488' : 'var(--ws-border)'}`,
                     background: iMine ? 'rgba(13,148,136,0.15)' : 'var(--ws-surface-2)',
-                    transition: 'all 0.1s',
                   }}
                 >
                   <span>{r.emoji}</span>
@@ -156,68 +249,48 @@ function MessageBubble({
           </div>
         )}
 
-        {/* Thread reply count */}
-        {msg.replyCount > 0 && !isEditing && !isDeleting && (
-          <button style={{
-            marginTop: 4, fontSize: 11, color: '#1a73e8', background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-            display: 'block', textAlign: isOwn ? 'right' : 'left',
+        {/* DESKTOP: action bar floats ABOVE the bubble */}
+        {!isMobile && hovered && !isEditing && !isDeleting && (
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            marginBottom: 4,
+            [isOwn ? 'right' : 'left']: 0,
+            display: 'flex', gap: 2,
+            background: 'var(--ws-bg)',
+            border: '0.5px solid var(--ws-border)',
+            borderRadius: 8,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            padding: 2,
+            zIndex: 100,
+            whiteSpace: 'nowrap',
           }}>
+            {renderButtons(null)}
+          </div>
+        )}
+
+        {/* MOBILE: action bar appears inline BELOW the bubble after long press */}
+        {isMobile && showMobileActions && !isEditing && !isDeleting && (
+          <div style={{
+            display: 'flex', gap: 2, marginTop: 6,
+            justifyContent: isOwn ? 'flex-end' : 'flex-start',
+            background: 'var(--ws-bg)',
+            border: '0.5px solid var(--ws-border)',
+            borderRadius: 10, padding: 4,
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+          }}>
+            {renderButtons(() => setShowMobileActions(false))}
+          </div>
+        )}
+
+        {/* reply count */}
+        {msg.replyCount > 0 && !isEditing && !isDeleting && (
+          <button style={{ marginTop: 4, fontSize: 11, color: '#1a73e8', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'block', textAlign: isOwn ? 'right' : 'left' }}>
             {msg.replyCount} {msg.replyCount === 1 ? 'reply' : 'replies'}
           </button>
         )}
-
-        {/* Action bar — floats above bubble on hover */}
-        {hovered && !isEditing && !isDeleting && (
-          <div style={{
-            position: 'absolute', right: 20, top: 4,
-            display: 'flex', gap: 2, background: '#fff',
-            border: '1px solid #e5e7eb', borderRadius: 8,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: 2,
-          }}>
-            <div style={{ position: 'relative' }}>
-              <ActionBtn title="React" onClick={() => setShowPicker(prev => !prev)}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" />
-                </svg>
-              </ActionBtn>
-              {showPicker && (
-                <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 4, zIndex: 100 }}>
-                  <EmojiPicker onSelect={(emoji) => { onReact(msg.id, emoji); setShowPicker(false); }} onClose={() => setShowPicker(false)} />
-                </div>
-              )}
-            </div>
-            {isOwn && (
-              <>
-                <ActionBtn title="Edit" onClick={() => onEdit(msg.id, msg.text)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </ActionBtn>
-                <ActionBtn title="Delete" onClick={() => onDelete(msg.id)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </ActionBtn>
-              </>
-            )}
-          </div>
-        )}
       </div>
     </div>
-  );
-}
-
-function ActionBtn({ title, onClick, children }) {
-  return (
-    <button title={title} onClick={onClick} style={{
-      background: 'none', border: 'none', cursor: 'pointer', padding: '4px 7px',
-      borderRadius: 5, fontSize: 14, transition: 'background 0.1s', color: 'var(--ws-text)',
-    }}
-      onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'none'}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -241,7 +314,6 @@ function LoadingSkeleton() {
   );
 }
 
-// @mention autocomplete dropdown shown above the input
 function MentionDropdown({ users, search, onSelect }) {
   const filtered = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase())).slice(0, 6);
   if (!filtered.length) return null;
@@ -271,8 +343,7 @@ function MentionDropdown({ users, search, onSelect }) {
   );
 }
 
-// Search results panel
-function SearchResultsPanel({ results, onClose, onJump, loading }) {
+function SearchResultsPanel({ results, onClose, loading }) {
   return (
     <div style={{
       position: 'absolute', top: 57, left: 0, right: 0, bottom: 0, zIndex: 30,
@@ -282,15 +353,9 @@ function SearchResultsPanel({ results, onClose, onJump, loading }) {
         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ws-text)' }}>{loading ? 'Searching...' : `${results.length} result${results.length !== 1 ? 's' : ''}`}</span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', fontSize: 16 }}>✕</button>
       </div>
-      {!loading && results.length === 0 && (
-        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ws-text-muted)', fontSize: 14 }}>No messages found</div>
-      )}
+      {!loading && results.length === 0 && <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--ws-text-muted)', fontSize: 14 }}>No messages found</div>}
       {results.map(r => (
-        <button key={r.id} onClick={() => onJump(r)} style={{
-          width: '100%', display: 'flex', gap: 10, padding: '12px 20px',
-          background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
-          borderBottom: '0.5px solid var(--ws-border)',
-        }}
+        <button key={r.id} style={{ width: '100%', display: 'flex', gap: 10, padding: '12px 20px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '0.5px solid var(--ws-border)' }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--ws-hover)'}
           onMouseLeave={e => e.currentTarget.style.background = 'none'}
         >
@@ -314,32 +379,29 @@ export default function ChatArea({
   spaceMembers, currentUserId, currentUser, allUsers = [],
   onEditMessage, onDeleteMessage, onAddReaction, onRemoveReaction,
   typingUsers, messagesLoading, hasMore, onLoadMore, onTypingChange,
-  spaceId,
+  spaceId, isMobile = false, className = '',
 }) {
-  const [input, setInput] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [input, setInput]               = useState('');
+  const [showSearch, setShowSearch]     = useState(false);
+  const [searchQuery, setSearchQuery]   = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [editContent, setEditContent] = useState('');
-  const [deletingId, setDeletingId] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  // Reply-to state
-  const [replyingTo, setReplyingTo] = useState(null);
-  // @mention autocomplete
-  const [mentionSearch, setMentionSearch] = useState('');
+  const [showMembers, setShowMembers]   = useState(false);
+  const [editingId, setEditingId]       = useState(null);
+  const [editContent, setEditContent]   = useState('');
+  const [deletingId, setDeletingId]     = useState(null);
+  const [loadingMore, setLoadingMore]   = useState(false);
+  const [replyingTo, setReplyingTo]     = useState(null);
+  const [mentionSearch, setMentionSearch]   = useState('');
   const [showMentionDropdown, setShowMentionDropdown] = useState(false);
   const [mentionStartPos, setMentionStartPos] = useState(-1);
-  // File attachment
-  const [pendingFiles, setPendingFiles] = useState([]); // [{url, name, type, size}]
+  const [pendingFiles, setPendingFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  const bottomRef = useRef(null);
-  const inputRef = useRef(null);
+  const bottomRef      = useRef(null);
+  const inputRef       = useRef(null);
   const typingTimerRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const fileInputRef   = useRef(null);
   const searchTimerRef = useRef(null);
 
   useEffect(() => {
@@ -356,7 +418,6 @@ export default function ChatArea({
     return () => { if (typingTimerRef.current) clearTimeout(typingTimerRef.current); };
   }, []);
 
-  // Run search when query changes (debounced 350ms)
   useEffect(() => {
     if (!showSearch || !searchQuery.trim()) { setSearchResults([]); return; }
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
@@ -365,7 +426,7 @@ export default function ChatArea({
       try {
         const results = await searchMessages(searchQuery.trim(), spaceId || null);
         setSearchResults(results);
-      } catch { }
+      } catch {}
       setSearchLoading(false);
     }, 350);
     return () => clearTimeout(searchTimerRef.current);
@@ -373,22 +434,13 @@ export default function ChatArea({
 
   const handleInputChange = (val) => {
     setInput(val);
-    // @mention detection
     const lastAt = val.lastIndexOf('@');
     if (lastAt !== -1) {
       const afterAt = val.slice(lastAt + 1);
       if (!afterAt.includes(' ') && afterAt.length <= 20) {
-        setMentionSearch(afterAt);
-        setMentionStartPos(lastAt);
-        setShowMentionDropdown(true);
-      } else {
-        setShowMentionDropdown(false);
-      }
-    } else {
-      setShowMentionDropdown(false);
-      setMentionStartPos(-1);
-    }
-    // Typing indicator
+        setMentionSearch(afterAt); setMentionStartPos(lastAt); setShowMentionDropdown(true);
+      } else { setShowMentionDropdown(false); }
+    } else { setShowMentionDropdown(false); setMentionStartPos(-1); }
     onTypingChange?.(true);
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => onTypingChange?.(false), 2000);
@@ -396,10 +448,9 @@ export default function ChatArea({
 
   const handleMentionSelect = (user) => {
     const before = input.slice(0, mentionStartPos);
-    const after = input.slice(mentionStartPos + 1 + mentionSearch.length);
+    const after  = input.slice(mentionStartPos + 1 + mentionSearch.length);
     setInput(`${before}@${user.name} ${after}`);
-    setShowMentionDropdown(false);
-    setMentionStartPos(-1);
+    setShowMentionDropdown(false); setMentionStartPos(-1);
     inputRef.current?.focus();
   };
 
@@ -411,7 +462,7 @@ export default function ChatArea({
     try {
       const result = await uploadFile(file);
       setPendingFiles(prev => [...prev, result]);
-    } catch { alert('File upload failed. Check Cloudinary credentials in .env'); }
+    } catch { alert('File upload failed'); }
     setUploadingFile(false);
     e.target.value = '';
   };
@@ -421,20 +472,17 @@ export default function ChatArea({
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     onTypingChange?.(false);
     onSend(input.trim(), replyingTo?.id || null, pendingFiles);
-    setInput('');
-    setPendingFiles([]);
-    setReplyingTo(null);
-    setShowMentionDropdown(false);
+    setInput(''); setPendingFiles([]); setReplyingTo(null); setShowMentionDropdown(false);
     inputRef.current?.focus();
   };
 
-const handleEditSave = async () => {
+  const handleEditSave = async () => {
     if (!editContent.trim() || !editingId) return;
     try {
       await onEditMessage(editingId, editContent.trim());
       setEditingId(null); setEditContent('');
     } catch {
-      // Keep textarea open so user knows it failed
+      // keeping textarea open so user can see the edit failed
     }
   };
 
@@ -452,15 +500,16 @@ const handleEditSave = async () => {
   };
 
   if (!title || activeView === 'home' || activeView === 'mentions') {
+    if (isMobile) return null;
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--ws-bg)' }}>
         <svg viewBox="0 0 200 180" fill="none" style={{ width: 160, height: 140, marginBottom: 20, opacity: 0.5 }}>
-          <rect x="65" y="20" width="80" height="110" rx="8" fill="var(--ws-surface-2)" stroke="var(--ws-border)" strokeWidth="2" />
-          <rect x="80" y="45" width="50" height="4" rx="2" fill="var(--ws-border)" />
-          <rect x="80" y="57" width="40" height="4" rx="2" fill="var(--ws-border)" />
-          <rect x="80" y="69" width="45" height="4" rx="2" fill="var(--ws-border)" />
-          <circle cx="55" cy="140" r="18" fill="#0D9488" opacity="0.7" />
-          <path d="M48 140l5 5 9-9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <rect x="65" y="20" width="80" height="110" rx="8" fill="var(--ws-surface-2)" stroke="var(--ws-border)" strokeWidth="2"/>
+          <rect x="80" y="45" width="50" height="4" rx="2" fill="var(--ws-border)"/>
+          <rect x="80" y="57" width="40" height="4" rx="2" fill="var(--ws-border)"/>
+          <rect x="80" y="69" width="45" height="4" rx="2" fill="var(--ws-border)"/>
+          <circle cx="55" cy="140" r="18" fill="#0D9488" opacity="0.7"/>
+          <path d="M48 140l5 5 9-9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
         </svg>
         <p style={{ fontSize: 16, color: 'var(--ws-text)', fontWeight: 600, margin: '0 0 6px' }}>No conversation selected</p>
         <p style={{ fontSize: 14, color: 'var(--ws-text-muted)' }}>Select a space or DM to start</p>
@@ -469,87 +518,82 @@ const handleEditSave = async () => {
   }
 
   return (
-    <div style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
+    <div className={className} style={{ flex: 1, display: 'flex', height: '100%', overflow: 'hidden', position: 'relative' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--ws-bg)', height: '100%', overflow: 'hidden' }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', height: 57, borderBottom: '0.5px solid var(--ws-border)', flexShrink: 0, background: 'var(--ws-bg)' }}>
-          <div>
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: isMobile ? '0 12px' : '0 16px', height: 57, borderBottom: '0.5px solid var(--ws-border)', flexShrink: 0, background: 'var(--ws-bg)' }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               {isSpace && <span style={{ color: 'var(--ws-text-muted)', fontSize: 18, fontWeight: 300 }}>#</span>}
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--ws-text)', margin: 0 }}>{title}</h2>
-              {memberCount && <span style={{ fontSize: 11, color: 'var(--ws-text-muted)', marginLeft: 2 }}>· {memberCount} members</span>}
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--ws-text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h2>
+              {memberCount && !isMobile && <span style={{ fontSize: 11, color: 'var(--ws-text-muted)', marginLeft: 2, flexShrink: 0 }}>· {memberCount} members</span>}
             </div>
-            {description && (
-              <p style={{ fontSize: 11, color: 'var(--ws-text-muted)', margin: 0, marginTop: 1, maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {description}
-              </p>
-            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
             <button onClick={() => { setShowSearch(p => !p); setSearchQuery(''); setSearchResults([]); }} style={iconBtn(showSearch)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
-              Search
+              {!isMobile && 'Search'}
             </button>
             {memberCount && (
               <button onClick={() => setShowMembers(p => !p)} style={iconBtn(showMembers)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                Members
+                {!isMobile && 'Members'}
               </button>
             )}
-            <button onClick={onToggleMaximize} style={iconBtn(false)} title={isMaximized ? 'Restore' : 'Expand'}>
-              {isMaximized ? (
+            {!isMobile && (
+              <button onClick={onToggleMaximize} style={iconBtn(false)}>
+                {isMaximized ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/><line x1="3" y1="21" x2="14" y2="10"/>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                )}
+              </button>
+            )}
+            {!isMobile && (
+              <button onClick={onClose} style={{ ...iconBtn(false), color: 'var(--ws-text-muted)' }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="10" y1="14" x2="21" y2="3" /><line x1="3" y1="21" x2="14" y2="10" />
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-                </svg>
-              )}
-            </button>
-            <button onClick={onClose} style={{ ...iconBtn(false), color: 'var(--ws-text-muted)' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Inline search bar */}
         {showSearch && (
           <div style={{ padding: '8px 16px', borderBottom: '0.5px solid var(--ws-border)', background: 'var(--ws-surface)' }}>
-            <input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search messages..."
-              autoFocus
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search messages..." autoFocus
               style={{ width: '100%', padding: '7px 12px', border: '0.5px solid var(--ws-border)', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', background: 'var(--ws-bg)', color: 'var(--ws-text)' }}
             />
           </div>
         )}
 
-        {/* Search results overlay */}
         {showSearch && (searchQuery.trim() || searchLoading) && (
-          <SearchResultsPanel
-            results={searchResults}
-            loading={searchLoading}
+          <SearchResultsPanel results={searchResults} loading={searchLoading}
             onClose={() => { setShowSearch(false); setSearchQuery(''); setSearchResults([]); }}
-            onJump={(r) => { setShowSearch(false); setSearchQuery(''); /* jump to message handled in parent */ }}
           />
         )}
 
-        {/* Message list */}
+        {/* message list */}
         <div style={{ flex: 1, overflowY: 'auto', paddingTop: 8 }}>
           {messagesLoading ? <LoadingSkeleton /> : (
             <>
               {hasMore && (
                 <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                  <button onClick={handleLoadMore} disabled={loadingMore} style={{ fontSize: 12, color: '#1a73e8', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  <button onClick={handleLoadMore} disabled={loadingMore}
+                    style={{ fontSize: 12, color: '#1a73e8', background: 'none', border: 'none', cursor: 'pointer' }}>
                     {loadingMore ? 'Loading...' : 'Load earlier messages'}
                   </button>
                 </div>
@@ -559,13 +603,13 @@ const handleEditSave = async () => {
                 <span style={{ fontSize: 10, color: 'var(--ws-text-muted)', fontWeight: 500 }}>Today</span>
                 <div style={{ flex: 1, height: '0.5px', background: 'var(--ws-border)' }} />
               </div>
-
               {messages.map(msg => (
                 <MessageBubble key={msg.id} msg={msg} currentUserId={currentUserId}
+                  isMobile={isMobile}
                   onEdit={(id, text) => { setEditingId(id); setEditContent(text); setDeletingId(null); }}
                   onDelete={(id) => { setDeletingId(id); setEditingId(null); }}
                   onReact={onAddReaction} onRemoveReact={onRemoveReaction}
-                  onReply={(msg) => { setReplyingTo(msg); inputRef.current?.focus(); }}
+                  onReply={(m) => { setReplyingTo(m); inputRef.current?.focus(); }}
                   isEditing={editingId === msg.id}
                   editContent={editingId === msg.id ? editContent : ''}
                   onEditChange={setEditContent}
@@ -581,18 +625,16 @@ const handleEditSave = async () => {
           )}
         </div>
 
-        {/* Typing indicator */}
         {typingUsers?.length > 0 && (
           <div style={{ padding: '2px 16px 4px', fontSize: 11, color: 'var(--ws-text-muted)', fontStyle: 'italic' }}>
             {typingUsers.length === 1 ? `${typingUsers[0]} is typing...` : `${typingUsers.join(', ')} are typing...`}
           </div>
         )}
 
-        {/* Pending file previews */}
         {pendingFiles.length > 0 && (
           <div style={{ padding: '6px 16px', borderTop: '0.5px solid var(--ws-border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {pendingFiles.map((f, i) => (
-              <div key={i} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--ws-surface-2)', borderRadius: 8, padding: '4px 8px', fontSize: 12, color: 'var(--ws-text)' }}>
+              <div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--ws-surface-2)', borderRadius: 8, padding: '4px 8px', fontSize: 12, color: 'var(--ws-text)' }}>
                 {f.type?.startsWith('image/') ? <img src={f.url} alt={f.name} style={{ width: 32, height: 32, borderRadius: 4, objectFit: 'cover' }} /> : '📎'}
                 <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                 <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))}
@@ -602,7 +644,6 @@ const handleEditSave = async () => {
           </div>
         )}
 
-        {/* Reply preview bar */}
         {replyingTo && (
           <div style={{ padding: '6px 16px', borderTop: '0.5px solid var(--ws-border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--ws-surface)' }}>
             <div style={{ flex: 1, borderLeft: '3px solid #0D9488', paddingLeft: 8 }}>
@@ -613,46 +654,33 @@ const handleEditSave = async () => {
           </div>
         )}
 
-        {/* Input */}
-        <div style={{ padding: '8px 16px 14px', flexShrink: 0, position: 'relative' }}>
-          {/* @mention dropdown */}
+        {/* input area */}
+        <div style={{ padding: isMobile ? '8px 12px 12px' : '8px 16px 14px', flexShrink: 0, position: 'relative' }}>
           {showMentionDropdown && (
             <MentionDropdown users={allUsers} search={mentionSearch} onSelect={handleMentionSelect} />
           )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--ws-input-bg)', borderRadius: 12, padding: '8px 12px', border: '0.5px solid var(--ws-border)', transition: 'border-color 0.15s' }}
-            onFocus={() => { }} onBlur={() => { }}
-          >
-            {/* File attachment button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploadingFile}
-              title="Attach file"
-              style={{ background: 'none', border: 'none', cursor: uploadingFile ? 'not-allowed' : 'pointer', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center', padding: '2px', flexShrink: 0 }}
-            >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--ws-input-bg)', borderRadius: isMobile ? 24 : 12, padding: '8px 12px', border: '0.5px solid var(--ws-border)' }}>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} title="Attach file"
+              style={{ background: 'none', border: 'none', cursor: uploadingFile ? 'not-allowed' : 'pointer', color: 'var(--ws-text-muted)', display: 'flex', alignItems: 'center', padding: '2px', flexShrink: 0 }}>
               {uploadingFile ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                 </svg>
               ) : (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                 </svg>
               )}
             </button>
             <input ref={fileInputRef} type="file" onChange={handleFileSelect} style={{ display: 'none' }} accept="image/*,.pdf,.doc,.docx,.txt,.zip,.csv" />
 
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => handleInputChange(e.target.value)}
+            <input ref={inputRef} value={input} onChange={e => handleInputChange(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                 if (e.key === 'Escape') { setShowMentionDropdown(false); setReplyingTo(null); }
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {/* mention nav - future */ }
               }}
               placeholder={`Message ${isSpace ? '#' : ''}${title}...`}
-              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: 14, color: 'var(--ws-text)' }}
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: isMobile ? 15 : 14, color: 'var(--ws-text)' }}
             />
 
             <button onClick={handleSend} disabled={!input.trim() && !pendingFiles.length}
@@ -662,25 +690,29 @@ const handleEditSave = async () => {
                 background: (input.trim() || pendingFiles.length) ? '#0D9488' : 'var(--ws-surface-2)',
                 color: (input.trim() || pendingFiles.length) ? '#fff' : 'var(--ws-text-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s',
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+              }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Members side panel */}
+      {/* members panel */}
       {showMembers && isSpace && (
-        <div style={{ width: 240, borderLeft: '0.5px solid var(--ws-border)', background: 'var(--ws-bg)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div style={{
+          width: isMobile ? '100%' : 240,
+          borderLeft: isMobile ? 'none' : '0.5px solid var(--ws-border)',
+          background: 'var(--ws-bg)', display: 'flex', flexDirection: 'column', flexShrink: 0,
+          ...(isMobile ? { position: 'absolute', inset: 0, zIndex: 20 } : {}),
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', height: 57, borderBottom: '0.5px solid var(--ws-border)' }}>
             <h3 style={{ fontSize: 13, fontWeight: 600, color: 'var(--ws-text)', margin: 0 }}>Members ({spaceMembers?.length || 0})</h3>
             <button onClick={() => setShowMembers(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ws-text-muted)', fontSize: 16 }}>✕</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
             {(spaceMembers || []).map(m => (
-              <div key={m.id || m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px' }}>
-                <Avatar initials={initials(m.name || String(m))} color="#0D9488" size={30} avatarUrl={m.avatar_url} />
+              <div key={m.id || m} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '10px 16px' : '7px 14px' }}>
+                <Avatar initials={initials(m.name || String(m))} color="#0D9488" size={isMobile ? 36 : 30} avatarUrl={m.avatar_url} />
                 <span style={{ fontSize: 13, color: 'var(--ws-text)', fontWeight: 500 }}>
                   {m.name || m}
                   {m.id === currentUserId && <span style={{ fontSize: 11, color: 'var(--ws-text-muted)', fontWeight: 400 }}> (you)</span>}
@@ -697,7 +729,7 @@ const handleEditSave = async () => {
 const iconBtn = (active) => ({
   background: active ? 'var(--ws-surface-2)' : 'none',
   color: active ? '#1a73e8' : 'var(--ws-text-muted)',
-  border: 'none', cursor: 'pointer', padding: '5px 10px',
+  border: 'none', cursor: 'pointer', padding: '5px 8px',
   borderRadius: 6, fontSize: 12, fontWeight: 500,
   display: 'flex', alignItems: 'center', gap: 4,
 });
